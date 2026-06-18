@@ -1,0 +1,21 @@
+# Root ignores
+.env
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+dist/
+build/
+coverage/
+.DS_Store
+
+# VS Code
+.vscode/
+
+# Docker
+docker-compose.*
+logs/

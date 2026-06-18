@@ -1,0 +1,21 @@
+[project]
+name = "business_copilot_backend"
+version = "0.1.0"
+description = "FastAPI backend for Business Copilot"
+readme = "README.md"
+requires-python = ">=3.10"
+
+[project.dependencies]
+fastapi = "^0.110.0"
+uvicorn = "^0.23.2"
+sqlalchemy = "^2.0.26"
+psycopg[binary] = "^3.2.0"
+pydantic = "^2.8.0"
+python-jose = "^3.3.0"
+passlib[bcrypt] = "^1.7.5"
+pandas = "^2.1.2"
+python-dotenv = "^1.0.0"
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"

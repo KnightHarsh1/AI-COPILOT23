@@ -1,0 +1,104 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  font-family: 'Inter', system-ui, sans-serif;
+
+  /* Warm paper-white light theme — deliberately not pure-white/cold-gray */
+  --c-bg: 250 250 248;
+  --c-bg-subtle: 241 240 236;
+  --c-surface: 255 255 255;
+  --c-border: 231 229 222;
+  --c-ink: 22 23 27;
+  --c-ink-muted: 91 93 102;
+
+  --c-primary: 67 56 202;
+  --c-primary-hover: 55 46 160;
+  --c-gold: 200 132 29;
+
+  --c-risk-high: 220 38 38;
+  --c-risk-medium: 200 132 29;
+  --c-risk-low: 21 128 61;
+
+  /* Sidebar stays ink-dark in both themes — a deliberate visual anchor */
+  --c-sidebar-bg: 20 21 26;
+  --c-sidebar-ink: 231 229 222;
+  --c-sidebar-muted: 148 150 161;
+  --c-sidebar-active: 99 102 241;
+}
+
+.dark {
+  color-scheme: dark;
+
+  --c-bg: 15 16 18;
+  --c-bg-subtle: 22 23 27;
+  --c-surface: 26 27 32;
+  --c-border: 42 43 49;
+  --c-ink: 241 240 236;
+  --c-ink-muted: 154 156 166;
+
+  --c-primary: 99 102 241;
+  --c-primary-hover: 129 140 248;
+  --c-gold: 226 163 61;
+
+  --c-risk-high: 248 113 113;
+  --c-risk-medium: 226 163 61;
+  --c-risk-low: 74 222 128;
+
+  --c-sidebar-bg: 11 12 14;
+  --c-sidebar-ink: 231 229 222;
+  --c-sidebar-muted: 138 140 150;
+  --c-sidebar-active: 129 140 248;
+}
+
+* {
+  border-color: rgb(var(--c-border));
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: rgb(var(--c-bg));
+  color: rgb(var(--c-ink));
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+h1, h2, h3, h4, .font-display {
+  font-family: 'Sora', system-ui, sans-serif;
+}
+
+/* Signature detail: every financial figure renders in tabular monospace
+   so amounts line up like an instrument panel, not just styled text. */
+.figure,
+.font-figure {
+  font-family: '"JetBrains Mono"', ui-monospace, monospace;
+  font-feature-settings: 'tnum';
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--c-border));
+  border-radius: 999px;
+}
+
+:focus-visible {
+  outline: 2px solid rgb(var(--c-primary));
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
