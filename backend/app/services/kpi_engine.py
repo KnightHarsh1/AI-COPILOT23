@@ -5,7 +5,7 @@ from typing import Any, Dict, Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.db.models import Expense, InventoryItem, Metric, Sale
+from app.db.models import Expense, FinancialStatementLine, InventoryItem, Metric, Sale
 
 
 COGS_CATEGORIES = {
@@ -193,3 +193,83 @@ class KPIService:
             self._persist_metric(metric_name, decimal_value, company_id, start_date, end_date)
 
         return results
+
+    # -- New, additive: liquidity and solvency ratios from financial
+    # statement data (Universal Data Upload Engine, Phase 4). These are
+    # point-in-time balance-sheet metrics, not period-flow metrics like
+    # the KPIs above -- so they key off the latest available balance
+    # sheet date for the company, not a date range.
+
+    def _latest_balance_sheet_date(self, company_id) -> Optional[date]:
+        return self.session.query(func.max(FinancialStatementLine.statement_date)).filter(
+            FinancialStatementLine.company_id == company_id,
+            FinancialStatementLine.statement_type == 'balance_sheet',
+        ).scalar()
+
+    def _balance_sheet_category_sum(self, company_id, statement_date: date, category: str) -> Decimal:
+        result = self.session.query(func.coalesce(func.sum(FinancialStatementLine.amount), 0)).filter(
+            FinancialStatementLine.company_id == company_id,
+            FinancialStatementLine.statement_type == 'balance_sheet',
+            FinancialStatementLine.statement_date == statement_date,
+            FinancialStatementLine.line_category == category,
+        ).scalar()
+        return self._normalize_value(result)
+
+    def calculate_liquidity_ratios(self, company_id, as_of_date: Optional[date] = None) -> Dict[str, Any]:
+        statement_date = as_of_date or self._latest_balance_sheet_date(company_id)
+        if statement_date is None:
+            return {
+                'available': False,
+                'reason': 'No balance sheet data uploaded yet.',
+                'current_ratio': None,
+                'quick_ratio': None,
+                'statement_date': None,
+            }
+
+        current_assets = self._balance_sheet_category_sum(company_id, statement_date, 'current_assets')
+        inventory_assets = self._balance_sheet_category_sum(company_id, statement_date, 'inventory_assets')
+        current_liabilities = self._balance_sheet_category_sum(company_id, statement_date, 'current_liabilities')
+
+        if current_liabilities == 0:
+            return {
+                'available': True,
+                'current_ratio': None,
+                'quick_ratio': None,
+                'statement_date': statement_date,
+                'note': 'No current liabilities recorded -- ratio is undefined, not zero.',
+            }
+
+        return {
+            'available': True,
+            'current_ratio': self._to_float((current_assets + inventory_assets) / current_liabilities),
+            'quick_ratio': self._to_float(current_assets / current_liabilities),
+            'statement_date': statement_date,
+        }
+
+    def calculate_solvency_ratios(self, company_id, as_of_date: Optional[date] = None) -> Dict[str, Any]:
+        statement_date = as_of_date or self._latest_balance_sheet_date(company_id)
+        if statement_date is None:
+            return {
+                'available': False,
+                'reason': 'No balance sheet data uploaded yet.',
+                'debt_to_equity': None,
+                'statement_date': None,
+            }
+
+        long_term_liabilities = self._balance_sheet_category_sum(company_id, statement_date, 'long_term_liabilities')
+        current_liabilities = self._balance_sheet_category_sum(company_id, statement_date, 'current_liabilities')
+        equity = self._balance_sheet_category_sum(company_id, statement_date, 'equity')
+
+        if equity == 0:
+            return {
+                'available': True,
+                'debt_to_equity': None,
+                'statement_date': statement_date,
+                'note': 'No equity recorded -- ratio is undefined, not zero.',
+            }
+
+        return {
+            'available': True,
+            'debt_to_equity': self._to_float((long_term_liabilities + current_liabilities) / equity),
+            'statement_date': statement_date,
+        }

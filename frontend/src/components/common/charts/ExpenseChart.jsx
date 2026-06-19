@@ -19,17 +19,33 @@ function ExpenseChart() {
     return <p className="text-sm text-ink-muted">No expense data yet — upload an expense file to see this breakdown.</p>;
   }
 
+  const total = data.reduce((sum, d) => sum + (d.value || 0), 0);
+
   return (
-    <div style={{ width: "100%", height: 300 }}>
+    <div style={{ width: "100%", height: 320 }}>
       <ResponsiveContainer>
         <PieChart>
-          <Pie data={data} dataKey="value" nameKey="label" outerRadius={100} label={({ label }) => label}>
+          <Pie
+            data={data}
+            dataKey="value"
+            nameKey="label"
+            innerRadius={70}
+            outerRadius={110}
+            paddingAngle={2}
+            stroke="none"
+          >
             {data.map((entry, index) => (
               <Cell key={entry.label} fill={PIE_PALETTE[index % PIE_PALETTE.length]} />
             ))}
           </Pie>
-          <Tooltip contentStyle={tooltipContentStyle} formatter={(value) => formatCurrency(value)} />
-          <Legend />
+          <Tooltip
+            contentStyle={tooltipContentStyle}
+            formatter={(value, name) => [
+              `${formatCurrency(value)} (${total ? Math.round((value / total) * 100) : 0}%)`,
+              name,
+            ]}
+          />
+          <Legend verticalAlign="bottom" height={36} iconType="circle" />
         </PieChart>
       </ResponsiveContainer>
     </div>

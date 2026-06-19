@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, Date, DateTime, ForeignKey, Numeric, String, Text
+from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Numeric, String, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.base import Base, UUID
@@ -18,6 +18,16 @@ class Sale(Base):
     currency = Column(String(8), nullable=False, default='USD')
     category = Column(String(64), nullable=True)
     description = Column(Text, nullable=True)
+    # Collections Intelligence fields (additive). Default 'unknown' so
+    # historical sales imported without payment info are honestly marked
+    # as such rather than silently assumed paid or overdue.
+    due_date = Column(Date, nullable=True)
+    payment_status = Column(String(16), nullable=False, default='unknown')
+    amount_paid = Column(Numeric(14, 2), nullable=False, default=0)
+    is_credit_sale = Column(Boolean, nullable=False, default=False)
+    paid_date = Column(Date, nullable=True)
+    # Product Intelligence link (additive).
+    inventory_item_id = Column(UUID(as_uuid=True), ForeignKey('inventory_items.id', ondelete='SET NULL'), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 

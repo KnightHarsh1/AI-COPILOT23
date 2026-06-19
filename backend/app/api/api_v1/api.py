@@ -10,8 +10,10 @@ from app.api.api_v1.endpoints import (
     reports,
     recommendations,
     upload,
+    ingestion,
     dashboard,
     chat,
+    command_center,
     executive_summary,
     dashboard_brief,
     monthly_report,
@@ -19,6 +21,7 @@ from app.api.api_v1.endpoints import (
     forecast,
     pdf_report,
 )
+from app.core.config import settings
 
 api_router = APIRouter()
 
@@ -129,3 +132,20 @@ api_router.include_router(
     prefix="/chat",
     tags=["chat"]
 )
+
+if settings.command_center_enabled:
+    api_router.include_router(
+        command_center.router,
+        prefix="/command-center",
+        tags=["command-center"]
+    )
+
+# Additive, parallel to /upload/ -- not a replacement. Gated behind a
+# flag so it can be disabled with a config change, never a deploy.
+# See PRODUCTION_ARCHITECTURE_REVIEW.md section 7.
+if settings.ingestion_engine_enabled:
+    api_router.include_router(
+        ingestion.router,
+        prefix="/ingestion",
+        tags=["ingestion"]
+    )

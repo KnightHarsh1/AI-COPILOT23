@@ -14,6 +14,11 @@ class Company(Base):
     industry = Column(String(128), nullable=True)
     plan = Column(String(64), nullable=False, default='starter')
     is_active = Column(Boolean, default=True, nullable=False)
+    # Compliance Intelligence profile (additive).
+    gstin = Column(String(15), nullable=True)
+    pan = Column(String(10), nullable=True)
+    gst_filing_frequency = Column(String(16), nullable=False, default='monthly')
+    compliance_enabled = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
@@ -27,3 +32,8 @@ class Company(Base):
     alerts = relationship('Alert', back_populates='company', cascade='all, delete-orphan')
     reports = relationship('Report', back_populates='company', cascade='all, delete-orphan')
     recommendations = relationship('Recommendation', back_populates='company', cascade='all, delete-orphan')
+    ingestion_batches = relationship('IngestionBatch', back_populates='company', cascade='all, delete-orphan')
+    column_mapping_templates = relationship('ColumnMappingTemplate', back_populates='company', cascade='all, delete-orphan')
+    financial_statement_lines = relationship('FinancialStatementLine', back_populates='company', cascade='all, delete-orphan')
+    bank_transactions = relationship('BankTransaction', back_populates='company', cascade='all, delete-orphan')
+    compliance_deadlines = relationship('ComplianceDeadline', back_populates='company', cascade='all, delete-orphan')

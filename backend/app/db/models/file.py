@@ -25,3 +25,6 @@ class File(Base):
     uploader = relationship('User', back_populates='files')
     receipt_expenses = relationship('Expense', back_populates='receipt_file', foreign_keys='Expense.receipt_file_id')
     reports = relationship('Report', back_populates='file', foreign_keys='Report.file_id')
+    ingestion_batches = relationship('IngestionBatch', back_populates='file', cascade='all, delete-orphan')
+    financial_statement_lines = relationship('FinancialStatementLine', back_populates='source_file')
+    bank_transactions = relationship('BankTransaction', back_populates='source_file')

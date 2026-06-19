@@ -43,3 +43,21 @@ def get_health_chart(
 ):
     service = ChartService(db)
     return {'data': service.health_score_chart(current_user.company_id)}
+
+
+@router.get('/expense-trend', response_model=ChartSeriesResponse)
+def get_expense_trend_chart(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    service = ChartService(db)
+    return {'data': service.expense_trend_chart(current_user.company_id)}
+
+
+@router.get('/revenue-vs-expense')
+def get_revenue_vs_expense_chart(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    service = ChartService(db)
+    return {'data': service.revenue_vs_expense_chart(current_user.company_id)}

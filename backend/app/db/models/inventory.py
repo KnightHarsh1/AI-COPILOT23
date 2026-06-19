@@ -16,6 +16,9 @@ class InventoryItem(Base):
     unit_cost = Column(Numeric(14, 2), nullable=False, default=0.0)
     reorder_level = Column(Integer, nullable=False, default=0)
     location = Column(String(128), nullable=True)
+    # Product Intelligence velocity fields (additive), refreshed on import.
+    last_sold_date = Column(Date, nullable=True)
+    total_units_sold = Column(Integer, nullable=False, default=0)
     last_updated = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 

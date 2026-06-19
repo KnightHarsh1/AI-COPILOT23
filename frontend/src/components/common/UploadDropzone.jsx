@@ -1,8 +1,13 @@
 import { useRef, useState } from 'react';
 
-const ACCEPTED_TYPES = ['.csv', '.xlsx'];
+const DEFAULT_ACCEPTED_TYPES = ['.csv', '.xlsx'];
 
-function UploadDropzone({ onFilesSelected }) {
+function UploadDropzone({
+  onFilesSelected,
+  acceptedTypes = DEFAULT_ACCEPTED_TYPES,
+  multiple = true,
+  helperText,
+}) {
   const inputRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -41,8 +46,8 @@ function UploadDropzone({ onFilesSelected }) {
           ref={inputRef}
           type="file"
           hidden
-          accept={ACCEPTED_TYPES.join(',')}
-          multiple
+          accept={acceptedTypes.join(',')}
+          multiple={multiple}
           onChange={(event) => handleFiles(event.target.files)}
         />
 
@@ -56,7 +61,7 @@ function UploadDropzone({ onFilesSelected }) {
           <div>
             <p className="font-display text-lg font-semibold text-ink">Drag and drop files here</p>
             <p className="mt-2 text-sm text-ink-muted">
-              Supported formats: CSV, XLSX. Max size per file is 10 MB.
+              {helperText || `Supported formats: ${acceptedTypes.join(', ')}. Max size per file is 10 MB.`}
             </p>
           </div>
           <button
