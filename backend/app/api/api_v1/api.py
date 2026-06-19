@@ -14,6 +14,7 @@ from app.api.api_v1.endpoints import (
     dashboard,
     chat,
     command_center,
+    market_radar,
     executive_summary,
     dashboard_brief,
     monthly_report,
@@ -138,6 +139,13 @@ if settings.command_center_enabled:
         command_center.router,
         prefix="/command-center",
         tags=["command-center"]
+    )
+
+if settings.market_radar_enabled:
+    api_router.include_router(
+        market_radar.router,
+        prefix="/market-radar",
+        tags=["market-radar"]
     )
 
 # Additive, parallel to /upload/ -- not a replacement. Gated behind a

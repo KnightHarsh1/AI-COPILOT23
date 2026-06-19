@@ -1,7 +1,7 @@
 import { useState } from "react";
 import Drawer from "./Drawer";
 import ScoreGauge from "../common/charts/ScoreGauge";
-import { formatCurrency } from "../../utils/formatters";
+import { formatCurrency, formatCurrencyCompact } from "../../utils/formatters";
 
 function ProductWidget({ data }) {
   const [open, setOpen] = useState(false);
@@ -28,9 +28,11 @@ function ProductWidget({ data }) {
         </div>
         <div className="mt-4 flex items-center gap-4">
           <ScoreGauge score={data.product_health_score} size={96} label="Product health" />
-          <div className="space-y-1">
+          <div className="min-w-0 space-y-1">
             <p className="text-xs text-ink-muted">Inventory value</p>
-            <p className="figure text-lg font-bold text-ink">{formatCurrency(data.inventory_value)}</p>
+            <p className="figure truncate text-lg font-bold text-ink" title={formatCurrency(data.inventory_value)}>
+              {formatCurrencyCompact(data.inventory_value)}
+            </p>
             <p className="text-xs text-ink-muted">
               {data.stockout_risk?.length || 0} low-stock · {data.dead_stock?.length || 0} dead
             </p>

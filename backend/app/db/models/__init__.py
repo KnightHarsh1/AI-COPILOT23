@@ -8,6 +8,7 @@ from app.db.models.file import File
 from app.db.models.financial_statement import FinancialStatementLine
 from app.db.models.ingestion import ColumnMappingTemplate, IngestionBatch, StagingRow
 from app.db.models.inventory import InventoryItem
+from app.db.models.market import MarketSignal, UserMarketInsight
 from app.db.models.metric import Metric
 from app.db.models.report import Report
 from app.db.models.recommendation import Recommendation
@@ -26,10 +27,12 @@ __all__ = [
     'FinancialStatementLine',
     'IngestionBatch',
     'InventoryItem',
+    'MarketSignal',
     'Metric',
     'Report',
     'Recommendation',
     'Sale',
     'StagingRow',
     'User',
+    'UserMarketInsight',
 ]

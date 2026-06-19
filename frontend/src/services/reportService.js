@@ -23,6 +23,11 @@ const ReportService = {
     });
     return response.data;
   },
+
+  getExecutiveReport: async () => {
+    const response = await api.get('/reports/executive');
+    return response.data;
+  },
 };
 
 export default ReportService;

@@ -156,6 +156,7 @@ async def update_mapping(
     orchestrator = IngestionOrchestratorService(db)
 
     preview, missing = orchestrator.update_mapping(batch, payload.mapping)
+    quality = orchestrator._quality(batch, missing)
 
     return MappingUpdateResponse(
         batch_id=batch.id,
@@ -171,6 +172,7 @@ async def update_mapping(
             for row in preview
         ],
         required_fields_missing=missing,
+        data_quality=quality,
     )
 
 

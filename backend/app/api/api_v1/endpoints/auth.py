@@ -137,6 +137,10 @@ def update_profile(
         current_user.last_name = payload.last_name
     if payload.company_name is not None and current_user.company is not None:
         current_user.company.name = payload.company_name
+    if payload.avatar_url is not None:
+        current_user.avatar_url = payload.avatar_url or None
+    if payload.avatar_preset is not None:
+        current_user.avatar_preset = payload.avatar_preset or None
 
     db.commit()
     db.refresh(current_user)
@@ -192,6 +196,8 @@ def update_preferences(
         current_user.risk_alerts_enabled = payload.risk_alerts_enabled
     if payload.weekly_reports_enabled is not None:
         current_user.weekly_reports_enabled = payload.weekly_reports_enabled
+    if payload.risk_appetite is not None:
+        current_user.risk_appetite = payload.risk_appetite
 
     db.commit()
     db.refresh(current_user)

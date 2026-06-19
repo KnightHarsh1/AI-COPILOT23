@@ -1,7 +1,7 @@
 import { useState } from "react";
 import Drawer from "./Drawer";
 import ScoreGauge from "../common/charts/ScoreGauge";
-import { formatCurrency } from "../../utils/formatters";
+import { formatCurrency, formatCurrencyCompact } from "../../utils/formatters";
 
 const AGING_LABELS = {
   current: "Not due yet",
@@ -38,9 +38,11 @@ function CollectionsWidget({ data }) {
         </div>
         <div className="mt-4 flex items-center gap-4">
           <ScoreGauge score={data.credit_health_score} size={96} label="Credit health" />
-          <div className="space-y-1">
+          <div className="min-w-0 space-y-1">
             <p className="text-xs text-ink-muted">Outstanding</p>
-            <p className="figure text-lg font-bold text-ink">{formatCurrency(data.outstanding_receivables)}</p>
+            <p className="figure truncate text-lg font-bold text-ink" title={formatCurrency(data.outstanding_receivables)}>
+              {formatCurrencyCompact(data.outstanding_receivables)}
+            </p>
             <p className="text-xs text-ink-muted">{data.collection_efficiency}% collected</p>
           </div>
         </div>

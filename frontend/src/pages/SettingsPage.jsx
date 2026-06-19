@@ -6,6 +6,12 @@ import Button from '../components/common/Button';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { authService } from '../services/authService';
+import CommandCenterService from '../services/commandCenterService';
+
+const AVATAR_COLORS = {
+  indigo: '#4338ca', emerald: '#059669', amber: '#d97706',
+  rose: '#e11d48', sky: '#0284c7', violet: '#7c3aed',
+};
 
 const THEME_OPTIONS = [
   { value: 'light', label: 'Light' },
@@ -119,6 +125,21 @@ function SettingsPage() {
   const [aiStatus, setAiStatus] = useState(null);
   const [aiSaving, setAiSaving] = useState(false);
 
+  const [business, setBusiness] = useState({
+    industry: '', upload_frequency: 'monthly', business_goal: 'grow_revenue', monthly_revenue_goal: '',
+  });
+  const [businessStatus, setBusinessStatus] = useState(null);
+  const [businessSaving, setBusinessSaving] = useState(false);
+
+  const [riskAppetite, setRiskAppetite] = useState('balanced');
+  const [avatarPreset, setAvatarPreset] = useState(null);
+  const [avatarStatus, setAvatarStatus] = useState(null);
+  const [avatarUrl, setAvatarUrl] = useState(null);
+
+  const [compliance, setCompliance] = useState({ gstin: '', pan: '', gst_filing_frequency: 'monthly' });
+  const [complianceStatus, setComplianceStatus] = useState(null);
+  const [complianceSaving, setComplianceSaving] = useState(false);
+
   useEffect(() => {
     if (!user) return;
     setProfile({
@@ -137,7 +158,24 @@ function SettingsPage() {
       ai_report_style: user.ai_report_style || 'concise',
       ai_summary_length: user.ai_summary_length || 'medium',
     });
+    setRiskAppetite(user.risk_appetite || 'balanced');
+    setAvatarPreset(user.avatar_preset || null);
+    setAvatarUrl(user.avatar_url || null);
   }, [user]);
+
+  // Pull current compliance + business values so the fields show what's
+  // already saved rather than starting blank.
+  useEffect(() => {
+    let active = true;
+    CommandCenterService.getCommandCenter()
+      .then((data) => {
+        if (!active) return;
+        const c = data?.compliance;
+        if (c?.gstin) setCompliance((prev) => ({ ...prev, gstin: c.gstin }));
+      })
+      .catch(() => { /* non-fatal */ });
+    return () => { active = false; };
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -215,6 +253,85 @@ function SettingsPage() {
     }
   };
 
+  const handleBusinessSave = async () => {
+    setBusinessSaving(true);
+    setBusinessStatus(null);
+    try {
+      await CommandCenterService.updateBusinessProfile(business);
+      setBusinessStatus({ type: 'success', message: 'Business profile saved. Your Market Radar will refresh.' });
+    } catch (error) {
+      setBusinessStatus({ type: 'error', message: 'Could not save business profile.' });
+    } finally {
+      setBusinessSaving(false);
+    }
+  };
+
+  const handleRiskSave = async (value) => {
+    setRiskAppetite(value);
+    try {
+      const response = await authService.updatePreferences({ risk_appetite: value });
+      updateUser(response.data);
+    } catch (_) { /* non-fatal */ }
+  };
+
+  const handleAvatarSave = async (presetId) => {
+    setAvatarPreset(presetId);
+    setAvatarUrl(null);
+    setAvatarStatus(null);
+    try {
+      const response = await authService.updateProfile({ avatar_preset: presetId, avatar_url: '' });
+      updateUser(response.data);
+      setAvatarStatus({ type: 'success', message: 'Avatar updated.' });
+    } catch (_) {
+      setAvatarStatus({ type: 'error', message: 'Could not update avatar.' });
+    }
+  };
+
+  const handlePictureUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setAvatarStatus(null);
+
+    if (!file.type.startsWith('image/')) {
+      setAvatarStatus({ type: 'error', message: 'Please choose an image file.' });
+      return;
+    }
+    if (file.size > 1024 * 1024) {
+      setAvatarStatus({ type: 'error', message: 'Image must be under 1 MB. Try a smaller photo.' });
+      return;
+    }
+
+    // Read as a data URL so it persists with the profile without needing a
+    // separate file-storage service — keeps the feature self-contained.
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const dataUrl = reader.result;
+      try {
+        const response = await authService.updateProfile({ avatar_url: dataUrl, avatar_preset: '' });
+        updateUser(response.data);
+        setAvatarUrl(dataUrl);
+        setAvatarPreset(null);
+        setAvatarStatus({ type: 'success', message: 'Profile picture updated.' });
+      } catch (_) {
+        setAvatarStatus({ type: 'error', message: 'Could not save the picture.' });
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleComplianceSave = async () => {
+    setComplianceSaving(true);
+    setComplianceStatus(null);
+    try {
+      await CommandCenterService.updateComplianceProfile(compliance);
+      setComplianceStatus({ type: 'success', message: 'Compliance details saved. Your filing calendar will refresh.' });
+    } catch (_) {
+      setComplianceStatus({ type: 'error', message: 'Could not save compliance details.' });
+    } finally {
+      setComplianceSaving(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-bg">
       <Navbar />
@@ -274,6 +391,172 @@ function SettingsPage() {
               <Button type="submit" loading={profileSaving}>Save profile</Button>
               <StatusLine status={profileStatus} />
             </form>
+          </SectionCard>
+
+          <SectionCard title="Business profile" description="Powers your Market Radar and keeps your data fresh with reminders.">
+            <StatusLine status={businessStatus} />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block">
+                <span className="text-sm font-medium text-ink">Industry</span>
+                <select
+                  value={business.industry}
+                  onChange={(e) => setBusiness({ ...business, industry: e.target.value })}
+                  className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="">Select…</option>
+                  {['manufacturing','retail','wholesale','construction','textile','plastics','steel','food processing','services'].map((i) => (
+                    <option key={i} value={i}>{i.charAt(0).toUpperCase() + i.slice(1)}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="block">
+                <span className="text-sm font-medium text-ink">Upload frequency</span>
+                <select
+                  value={business.upload_frequency}
+                  onChange={(e) => setBusiness({ ...business, upload_frequency: e.target.value })}
+                  className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  {['daily','weekly','monthly','quarterly','yearly'].map((f) => (
+                    <option key={f} value={f}>{f.charAt(0).toUpperCase() + f.slice(1)}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="block">
+                <span className="text-sm font-medium text-ink">Main goal</span>
+                <select
+                  value={business.business_goal}
+                  onChange={(e) => setBusiness({ ...business, business_goal: e.target.value })}
+                  className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="grow_revenue">Grow revenue</option>
+                  <option value="improve_margin">Improve margins</option>
+                  <option value="reduce_risk">Reduce risk</option>
+                  <option value="expand">Expand the business</option>
+                </select>
+              </label>
+              <label className="block">
+                <span className="text-sm font-medium text-ink">Monthly revenue goal (₹)</span>
+                <input
+                  type="text"
+                  value={business.monthly_revenue_goal}
+                  onChange={(e) => setBusiness({ ...business, monthly_revenue_goal: e.target.value })}
+                  placeholder="e.g. 500000"
+                  className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </label>
+            </div>
+            <div className="mt-4">
+              <Button onClick={handleBusinessSave} loading={businessSaving}>Save business profile</Button>
+            </div>
+          </SectionCard>
+
+          <SectionCard title="Profile picture" description="Upload a photo or pick a colored avatar shown across Business Copilot.">
+            <StatusLine status={avatarStatus} />
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+              {/* Current avatar preview */}
+              <div className="shrink-0">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="" className="h-20 w-20 rounded-full object-cover ring-2 ring-primary/20" />
+                ) : (
+                  <div
+                    className="flex h-20 w-20 items-center justify-center rounded-full ring-2 ring-primary/20"
+                    style={{ backgroundColor: avatarPreset ? AVATAR_COLORS[avatarPreset] : 'var(--tw-prose-pre-bg, #4338ca)' }}
+                  >
+                    <span className="text-2xl font-bold text-white">
+                      {(user?.first_name?.[0] || 'B').toUpperCase()}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex-1 space-y-3">
+                <label className="inline-flex cursor-pointer items-center gap-2 rounded-pill bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-hover">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
+                    <path d="M12 16V4M12 4L8 8M12 4l4 4M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  Upload photo
+                  <input type="file" accept="image/*" hidden onChange={handlePictureUpload} />
+                </label>
+                <p className="text-xs text-ink-muted">JPG or PNG, up to 1 MB.</p>
+
+                <div>
+                  <p className="mb-2 text-xs font-medium text-ink-muted">Or pick a color avatar:</p>
+                  <div className="flex flex-wrap gap-3">
+                    {['indigo','emerald','amber','rose','sky','violet'].map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => handleAvatarSave(c)}
+                        className={`h-10 w-10 rounded-full ring-2 transition ${avatarPreset === c ? 'ring-primary' : 'ring-transparent hover:ring-border'}`}
+                        style={{ backgroundColor: AVATAR_COLORS[c] }}
+                        aria-label={`${c} avatar`}
+                      >
+                        <span className="text-sm font-bold text-white">
+                          {(user?.first_name?.[0] || 'B').toUpperCase()}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </SectionCard>
+
+          <SectionCard title="Compliance details" description="Your GSTIN and PAN power the GST, TDS, and ITR deadline tracker.">
+            <StatusLine status={complianceStatus} />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block">
+                <span className="text-sm font-medium text-ink">GSTIN</span>
+                <input
+                  type="text"
+                  value={compliance.gstin}
+                  onChange={(e) => setCompliance({ ...compliance, gstin: e.target.value.toUpperCase() })}
+                  maxLength={15}
+                  placeholder="e.g. 09ABCDE1234F1Z5"
+                  className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm font-medium text-ink">PAN</span>
+                <input
+                  type="text"
+                  value={compliance.pan}
+                  onChange={(e) => setCompliance({ ...compliance, pan: e.target.value.toUpperCase() })}
+                  maxLength={10}
+                  placeholder="e.g. ABCDE1234F"
+                  className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm font-medium text-ink">GST filing frequency</span>
+                <select
+                  value={compliance.gst_filing_frequency}
+                  onChange={(e) => setCompliance({ ...compliance, gst_filing_frequency: e.target.value })}
+                  className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="monthly">Monthly</option>
+                  <option value="quarterly">Quarterly</option>
+                </select>
+              </label>
+            </div>
+            <div className="mt-4">
+              <Button onClick={handleComplianceSave} loading={complianceSaving}>Save compliance details</Button>
+            </div>
+          </SectionCard>
+
+          <SectionCard title="Risk preferences" description="Tune how cautious your alerts and recommendations are.">
+            <div className="inline-flex rounded-pill bg-bg-subtle p-1">
+              {['cautious','balanced','aggressive'].map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => handleRiskSave(r)}
+                  className={`rounded-pill px-4 py-2 text-sm font-semibold capitalize transition ${riskAppetite === r ? 'bg-surface text-ink shadow-sm' : 'text-ink-muted hover:text-ink'}`}
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
           </SectionCard>
 
           <SectionCard title="Change password" description="Use a strong password you don't use elsewhere.">

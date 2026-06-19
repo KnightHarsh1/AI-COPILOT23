@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     # either way since it doesn't check this flag.
     ingestion_engine_enabled: bool = True
     command_center_enabled: bool = True
+    market_radar_enabled: bool = True
 
     class Config:
         env_file = ".env"

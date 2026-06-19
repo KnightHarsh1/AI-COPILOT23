@@ -65,7 +65,12 @@ function IngestionWizard({ onComplete }) {
       updated.map((s) => [s.source_column, s.suggested_field || null])
     );
     try {
-      await ingestionService.updateMapping(analyzeResult.batch_id, mappingDict);
+      const res = await ingestionService.updateMapping(analyzeResult.batch_id, mappingDict);
+      setAnalyzeResult((prev) => prev ? {
+        ...prev,
+        required_fields_missing: res.required_fields_missing ?? prev.required_fields_missing,
+        data_quality: res.data_quality ?? prev.data_quality,
+      } : prev);
     } catch (_) {
       // Preview update failures are non-fatal; the user can still confirm.
     }
@@ -262,6 +267,9 @@ function IngestionWizard({ onComplete }) {
         />
       </div>
 
+      {/* Data quality score */}
+      {analyzeResult?.data_quality && <DataQualityPanel quality={analyzeResult.data_quality} />}
+
       {/* Missing required fields warning */}
       {missingRequired.length > 0 && (
         <div className="rounded-xl border border-risk-high/30 bg-risk-high/5 px-5 py-3 text-sm text-risk-high">
@@ -324,6 +332,42 @@ function IngestionWizard({ onComplete }) {
           Confirm &amp; import
         </Button>
       </div>
+    </div>
+  );
+}
+
+function DataQualityPanel({ quality }) {
+  const score = quality.score ?? 0;
+  const color = score >= 90 ? "text-risk-low" : score >= 50 ? "text-risk-medium" : "text-risk-high";
+  const barColor = score >= 90 ? "bg-risk-low" : score >= 50 ? "bg-risk-medium" : "bg-risk-high";
+
+  return (
+    <div className="rounded-xl border border-border bg-bg-subtle p-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-ink">Data quality</h3>
+        <span className={`figure text-sm font-bold ${color}`}>
+          {score}/100 · {quality.grade}
+        </span>
+      </div>
+      <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-border">
+        <div className={`h-full rounded-full ${barColor} transition-all`} style={{ width: `${score}%` }} />
+      </div>
+      {quality.total_rows != null && (
+        <p className="mt-2 text-xs text-ink-muted">
+          {quality.valid_rows} clean · {quality.warning_rows} warnings · {quality.error_rows} errors
+          {" "}of {quality.total_rows} rows
+        </p>
+      )}
+      {Array.isArray(quality.suggestions) && quality.suggestions.length > 0 && (
+        <ul className="mt-2 space-y-1">
+          {quality.suggestions.map((s, i) => (
+            <li key={i} className="flex gap-2 text-xs text-ink-muted">
+              <span className="text-primary">→</span>
+              <span>{s}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

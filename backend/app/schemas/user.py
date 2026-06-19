@@ -39,6 +39,9 @@ class UserRead(UserBase):
     ai_personality: str = 'balanced'
     ai_report_style: str = 'concise'
     ai_summary_length: str = 'medium'
+    avatar_url: Optional[str] = None
+    avatar_preset: Optional[str] = None
+    risk_appetite: str = 'balanced'
     created_at: datetime
     updated_at: datetime
 
@@ -50,6 +53,8 @@ class UserProfileUpdate(BaseModel):
     last_name: Optional[str] = None
     email: Optional[EmailStr] = None
     company_name: Optional[str] = None
+    avatar_url: Optional[str] = None
+    avatar_preset: Optional[str] = None
 
 
 class PasswordChangeRequest(BaseModel):
@@ -65,3 +70,4 @@ class UserPreferencesUpdate(BaseModel):
     ai_personality: Optional[str] = None
     ai_report_style: Optional[str] = None
     ai_summary_length: Optional[str] = None
+    risk_appetite: Optional[str] = None

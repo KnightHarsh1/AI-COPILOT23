@@ -7,8 +7,19 @@ from app.api.api_v1.dependencies import get_current_active_user, get_db
 from app.db.models.user import User
 from app.schemas.report import ReportGenerateRequest, ReportListResponse, ReportResponse
 from app.services.report_service import ReportService
+from app.services.executive_report_service import ExecutiveReportService
 
 router = APIRouter()
+
+
+@router.get('/executive')
+def get_executive_report(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Business-owner-focused executive report: summary, risks,
+    opportunities, performance, insights, and recommended actions."""
+    return ExecutiveReportService(db).build(current_user.company_id, user=current_user)
 
 
 @router.post('/generate', response_model=ReportResponse)

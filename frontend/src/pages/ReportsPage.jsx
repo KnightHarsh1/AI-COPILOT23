@@ -3,6 +3,7 @@ import Navbar from '../components/common/Navbar';
 import Sidebar from '../components/common/Sidebar';
 import ReportService from '../services/reportService';
 import PDFService from '../services/pdfService';
+import ExecutiveReport from '../components/reports/ExecutiveReport';
 
 const reportTypes = [
   { label: 'Revenue Report', value: 'revenue' },
@@ -13,6 +14,7 @@ const reportTypes = [
 ];
 
 function ReportsPage() {
+  const [activeTab, setActiveTab] = useState('executive');
   const [reports, setReports] = useState([]);
   const [selectedType, setSelectedType] = useState('revenue');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -81,6 +83,28 @@ function ReportsPage() {
             </div>
           </div>
 
+          {/* Tab switcher: executive view (new) vs detailed report generator (existing) */}
+          <div className="inline-flex rounded-pill bg-bg-subtle p-1">
+            <button
+              type="button"
+              onClick={() => setActiveTab('executive')}
+              className={`rounded-pill px-4 py-2 text-sm font-semibold transition ${activeTab === 'executive' ? 'bg-surface text-ink shadow-sm' : 'text-ink-muted hover:text-ink'}`}
+            >
+              Executive overview
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('detailed')}
+              className={`rounded-pill px-4 py-2 text-sm font-semibold transition ${activeTab === 'detailed' ? 'bg-surface text-ink shadow-sm' : 'text-ink-muted hover:text-ink'}`}
+            >
+              Detailed reports
+            </button>
+          </div>
+
+          {activeTab === 'executive' && <ExecutiveReport />}
+
+          {activeTab === 'detailed' && (
+          <>
           <section className="rounded-card border border-border bg-surface p-6 shadow-card">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap">
               <select
@@ -204,6 +228,8 @@ function ReportsPage() {
               ))
             )}
           </section>
+          </>
+          )}
         </main>
       </div>
     </div>

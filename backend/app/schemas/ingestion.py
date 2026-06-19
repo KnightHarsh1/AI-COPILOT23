@@ -32,6 +32,7 @@ class AnalyzeResponse(BaseModel):
     required_fields_missing: List[str] = []
     matched_template_id: Optional[UUID] = None
     duplicate_file_warning: Optional[str] = None
+    data_quality: Optional[dict] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -46,6 +47,7 @@ class MappingUpdateResponse(BaseModel):
     status: str
     preview_rows: List[PreviewRow] = []
     required_fields_missing: List[str] = []
+    data_quality: Optional[dict] = None
 
 
 class ConfirmRequest(BaseModel):

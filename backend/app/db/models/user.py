@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.base import Base, UUID
@@ -29,6 +29,15 @@ class User(Base):
     ai_personality = Column(String(32), nullable=False, default='balanced')
     ai_report_style = Column(String(32), nullable=False, default='concise')
     ai_summary_length = Column(String(16), nullable=False, default='medium')
+
+    # Profile picture: either an uploaded image path or a chosen preset avatar id.
+    # Text (not String) so an uploaded image data-URL fits; a preset id
+    # or external URL also fits comfortably.
+    avatar_url = Column(Text, nullable=True)
+    avatar_preset = Column(String(32), nullable=True)
+
+    # Risk appetite preference influences alert thresholds in the UI copy.
+    risk_appetite = Column(String(16), nullable=False, default='balanced')  # cautious | balanced | aggressive
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useAuth } from "../context/AuthContext";
 import Navbar from "../components/common/Navbar";
 import Sidebar from "../components/common/Sidebar";
 import CommandCenterService from "../services/commandCenterService";
@@ -9,15 +10,20 @@ import CollectionsWidget from "../components/command/CollectionsWidget";
 import ProductWidget from "../components/command/ProductWidget";
 import ComplianceWidget from "../components/command/ComplianceWidget";
 import ComplianceSetupModal from "../components/command/ComplianceSetupModal";
+import MarketRadarWidget from "../components/command/MarketRadarWidget";
+import FreshnessBanner from "../components/command/FreshnessBanner";
+import BusinessProfileModal from "../components/command/BusinessProfileModal";
 import RevenueExpenseChart from "../components/common/charts/RevenueExpenseChart";
 import ExpenseChart from "../components/common/charts/ExpenseChart";
 import HealthScoreChart from "../components/common/charts/HealthScoreChart";
 
 function CommandCenterPage() {
+  const { user } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [setupOpen, setSetupOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -46,13 +52,18 @@ function CommandCenterPage() {
         <main className="space-y-6">
           {/* Header */}
           <section className="rounded-card border border-border bg-surface p-6 shadow-card">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">Business Command Center</p>
-            <h1 className="font-display mt-2 text-3xl font-bold text-ink">
-              {greeting()}, here&rsquo;s your business today
-            </h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-muted">
-              Everything that matters — health, what to do, what&rsquo;s risky, and why — in one place.
-            </p>
+            <div className="flex items-center gap-4">
+              <Avatar user={user} />
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">Business Command Center</p>
+                <h1 className="font-display mt-1 truncate text-2xl font-bold text-ink sm:text-3xl">
+                  {greeting()}{user?.first_name ? `, ${user.first_name}` : ""}
+                </h1>
+                <p className="mt-1 max-w-2xl text-sm leading-6 text-ink-muted">
+                  Everything that matters — health, what to do, what&rsquo;s risky, and why — in one place.
+                </p>
+              </div>
+            </div>
           </section>
 
           {loading && (
@@ -72,6 +83,9 @@ function CommandCenterPage() {
               {/* Section 1 — Business Health */}
               <HealthHero health={data.health} />
 
+              {/* Upload freshness banner (only shows when due/overdue) */}
+              <FreshnessBanner freshness={data.freshness} />
+
               {/* Section 2 — Daily AI Action Center */}
               <ActionCenter actionCenter={data.action_center} />
 
@@ -84,6 +98,7 @@ function CommandCenterPage() {
                   <CollectionsWidget data={data.collections} />
                   <ProductWidget data={data.product} />
                   <ComplianceWidget data={data.compliance} onSetup={() => setSetupOpen(true)} />
+                  <MarketRadarWidget data={data.market} onSetup={() => setProfileOpen(true)} onChanged={load} />
                 </div>
               </section>
 
@@ -118,6 +133,7 @@ function CommandCenterPage() {
       </div>
 
       <ComplianceSetupModal open={setupOpen} onClose={() => setSetupOpen(false)} onSaved={load} />
+      <BusinessProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} onSaved={load} />
     </div>
   );
 }
@@ -127,6 +143,41 @@ function greeting() {
   if (h < 12) return "Good morning";
   if (h < 17) return "Good afternoon";
   return "Good evening";
+}
+
+// Avatar: uploaded picture if present, else chosen color preset, else
+// colored initials. Mirrors the Settings avatar options.
+const AVATAR_PRESET_COLORS = {
+  indigo: "#4338ca", emerald: "#059669", amber: "#d97706",
+  rose: "#e11d48", sky: "#0284c7", violet: "#7c3aed",
+};
+
+function Avatar({ user }) {
+  const initials = ((user?.first_name?.[0] || "") + (user?.last_name?.[0] || "")).toUpperCase() || "B";
+  if (user?.avatar_url) {
+    return (
+      <img
+        src={user.avatar_url}
+        alt=""
+        className="h-12 w-12 shrink-0 rounded-full object-cover ring-2 ring-primary/20"
+      />
+    );
+  }
+  if (user?.avatar_preset && AVATAR_PRESET_COLORS[user.avatar_preset]) {
+    return (
+      <div
+        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-base font-bold text-white ring-2 ring-primary/20"
+        style={{ backgroundColor: AVATAR_PRESET_COLORS[user.avatar_preset] }}
+      >
+        {initials}
+      </div>
+    );
+  }
+  return (
+    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-base font-bold text-primary ring-2 ring-primary/20">
+      {initials}
+    </div>
+  );
 }
 
 export default CommandCenterPage;

@@ -133,6 +133,7 @@ class IngestionOrchestratorService:
             ],
             required_fields_missing=self.staging.missing_required_fields(batch, mapping),
             matched_template_id=matched_template.id if matched_template else None,
+            data_quality=self._quality(batch, self.staging.missing_required_fields(batch, mapping)),
         )
 
     def _pick_best_table(self, tables: List[RawTable], filename: str):
@@ -160,6 +161,13 @@ class IngestionOrchestratorService:
         missing = self.staging.missing_required_fields(batch, mapping)
         preview = self.staging.get_preview(batch)
         return preview, missing
+
+    def _quality(self, batch: IngestionBatch, missing):
+        try:
+            from app.services.data_quality_service import DataQualityService
+            return DataQualityService(self.session).score_batch(batch, missing_required=missing)
+        except Exception:
+            return None
 
     def confirm(
         self,
@@ -201,6 +209,8 @@ class IngestionOrchestratorService:
                 company_id=batch.company_id,
                 generated_by_id=current_user.id,
             )
+            from app.services.upload_freshness_service import UploadFreshnessService
+            UploadFreshnessService(self.session).touch(batch.company_id)
         except Exception:
             pass  # Insight generation is best-effort, matching upload.py's existing behavior.
 

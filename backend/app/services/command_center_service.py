@@ -22,6 +22,8 @@ from app.services.intelligence.action_center_service import ActionCenterService
 from app.services.intelligence.collections_service import CollectionsIntelligenceService
 from app.services.intelligence.product_service import ProductIntelligenceService
 from app.services.intelligence.compliance_service import ComplianceIntelligenceService
+from app.services.market.radar_service import MarketRadarService
+from app.services.upload_freshness_service import UploadFreshnessService
 
 
 def _safe(fn, fallback):
@@ -93,6 +95,18 @@ class CommandCenterService:
             {'available': False, 'reason': 'Product data could not be loaded.'},
         )
 
+        # Section 7 — Market Intelligence Radar
+        market = _safe(
+            lambda: MarketRadarService(self.session).build(company_id),
+            {'available': False, 'reason': 'Market radar could not be loaded.'},
+        )
+
+        # Upload freshness banner
+        freshness = _safe(
+            lambda: UploadFreshnessService(self.session).status(company_id),
+            {'available': False},
+        )
+
         # Outstanding receivables surfaced into the health strip if available.
         if collections.get('available'):
             health_section['outstanding_receivables'] = collections.get('outstanding_receivables', 0)
@@ -105,5 +119,7 @@ class CommandCenterService:
             'compliance': compliance,
             'collections': collections,
             'product': product,
+            'market': market,
+            'freshness': freshness,
             'generated_at': date.today().isoformat(),
         }
