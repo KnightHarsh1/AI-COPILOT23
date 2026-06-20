@@ -88,6 +88,13 @@ class IngestionOrchestratorService:
         table, detection = self._pick_best_table(tables, filename)
         table, detection = self._apply_refinement(table, detection, filename)
 
+        # Multi-sheet workbooks (like the test data file with Sales/Expenses/
+        # Inventory/Customers tabs) previously imported only the single
+        # highest-confidence sheet. Auto-commit every OTHER confidently
+        # detected sheet now, so one upload populates every section instead
+        # of silently dropping 3 of 4 sheets.
+        self._auto_commit_secondary_sheets(tables, table, filename, company_id, file_id)
+
         batch = self.staging.create_batch(
             company_id=company_id,
             file_id=file_id,
@@ -96,7 +103,25 @@ class IngestionOrchestratorService:
             sheet_name=table.sheet_name,
         )
 
-        suggestions = self.column_mapper.suggest_mapping(table, detection.document_type, company_id)
+        # Map columns. When detection was unknown/low-confidence, this also
+        # infers the document type from which fields the columns map to, so
+        # a plain business spreadsheet still gets auto-mapped instead of
+        # showing 0/N.
+        suggestions, inferred_type, inferred_confidence = self.column_mapper.suggest_with_inference(
+            table, detection.document_type, detection.confidence, company_id
+        )
+
+        # If inference upgraded an unknown/low-confidence detection, adopt it.
+        if inferred_type != detection.document_type or inferred_confidence != detection.confidence:
+            batch.document_type = inferred_type
+            batch.detection_confidence = inferred_confidence
+            self.session.commit()
+            effective_type = inferred_type
+            effective_confidence = inferred_confidence
+        else:
+            effective_type = detection.document_type
+            effective_confidence = detection.confidence
+
         mapping = {s.source_column: s.suggested_field for s in suggestions}
 
         self.staging.write_rows(batch, table, mapping)
@@ -107,8 +132,8 @@ class IngestionOrchestratorService:
 
         return AnalyzeResponse(
             batch_id=batch.id,
-            document_type=detection.document_type,
-            detection_confidence=detection.confidence,
+            document_type=effective_type,
+            detection_confidence=effective_confidence,
             sheet_name=table.sheet_name,
             status=batch.status,
             suggested_mapping=[
@@ -140,6 +165,47 @@ class IngestionOrchestratorService:
         detections = self.detector.detect_all_sheets(tables, filename)
         ranked = sorted(zip(tables, detections), key=lambda pair: pair[1].confidence, reverse=True)
         return ranked[0]
+
+    def _auto_commit_secondary_sheets(self, tables, primary_table, filename, company_id, file_id):
+        """For a multi-sheet workbook, stage+map+commit every sheet other
+        than the primary one (which goes through the interactive wizard).
+        Each is committed independently and best-effort -- a failure on one
+        sheet never blocks the others or the primary import."""
+        if len(tables) <= 1:
+            return
+        for tbl in tables:
+            if tbl is primary_table:
+                continue
+            try:
+                det = self.detector.detect(tbl, filename)
+                tbl2, det = self._apply_refinement(tbl, det, filename)
+                b = self.staging.create_batch(
+                    company_id=company_id, file_id=file_id,
+                    document_type=det.document_type, confidence=det.confidence,
+                    sheet_name=tbl2.sheet_name,
+                )
+                suggestions, inferred_type, inferred_conf = self.column_mapper.suggest_with_inference(
+                    tbl2, det.document_type, det.confidence, company_id
+                )
+                if inferred_type != det.document_type:
+                    b.document_type = inferred_type
+                    b.detection_confidence = inferred_conf
+                    self.session.commit()
+                mapping = {s.source_column: s.suggested_field for s in suggestions}
+                self.staging.write_rows(b, tbl2, mapping)
+                self.normalizer.commit_batch(b)
+            except Exception:
+                self.session.rollback()
+                continue
+        # Refresh insights once after all secondary sheets land.
+        try:
+            from app.services.health_score import HealthScoreService
+            from app.services.alert_service import AlertService
+            from app.services.recommendation_service import RecommendationService
+            HealthScoreService(self.session).calculate_health_score(company_id)
+            AlertService(self.session).generate_alerts(company_id)
+        except Exception:
+            pass
 
     def _apply_refinement(self, table: RawTable, detection, filename: str):
         refiner = _REFINEMENT_PARSERS_BY_TYPE.get(detection.document_type)
@@ -203,16 +269,32 @@ class IngestionOrchestratorService:
                 created_by_id=current_user.id,
             )
 
+        # Post-import refresh pipeline. Each step is independently guarded so
+        # one failure can't silently block the rest, and the stale-clearing
+        # inside each service commits regardless -- so the Action Center never
+        # shows alerts/recs that don't match the just-imported data.
+        from app.services.health_score import HealthScoreService
+        from app.services.upload_freshness_service import UploadFreshnessService
+
+        try:
+            HealthScoreService(self.session).calculate_health_score(batch.company_id)
+        except Exception:
+            pass
         try:
             AlertService(self.session).generate_alerts(batch.company_id)
+        except Exception:
+            pass
+        try:
             RecommendationService(self.session).generate_recommendations(
                 company_id=batch.company_id,
                 generated_by_id=current_user.id,
             )
-            from app.services.upload_freshness_service import UploadFreshnessService
+        except Exception:
+            pass
+        try:
             UploadFreshnessService(self.session).touch(batch.company_id)
         except Exception:
-            pass  # Insight generation is best-effort, matching upload.py's existing behavior.
+            pass
 
         return result
 

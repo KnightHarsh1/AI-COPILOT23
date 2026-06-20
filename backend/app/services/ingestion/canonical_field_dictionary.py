@@ -25,17 +25,25 @@ class FieldSpec(NamedTuple):
 
 SALES_FIELDS: List[FieldSpec] = [
     FieldSpec('invoice_date', True, 'The date of the sale or invoice',
-              ['invoice date', 'sale date', 'bill date', 'date', 'transaction date']),
+              ['invoice date', 'sale date', 'bill date', 'date', 'transaction date', 'order date', 'sales date', 'date of sale']),
     FieldSpec('amount', True, 'The sale value in rupees',
-              ['amount', 'sale value', 'value', 'total', 'net amount', 'invoice amount', 'sales amount']),
+              ['amount', 'sale value', 'value', 'total', 'net amount', 'invoice amount', 'sales amount',
+               'revenue', 'sales', 'net sales', 'gross sales', 'total amount', 'order value', 'sale amount', 'turnover']),
     FieldSpec('category', True, 'The product or sale category',
-              ['category', 'product category', 'type', 'item category']),
+              ['category', 'product category', 'type', 'item category', 'segment']),
+    FieldSpec('product_name', False, 'The product or item sold',
+              ['product', 'item', 'product name', 'item name', 'sku description', 'goods']),
+    FieldSpec('quantity', False, 'The number of units sold',
+              ['quantity', 'qty', 'units', 'no of units', 'count']),
+    FieldSpec('unit_price', False, 'The price per unit',
+              ['price', 'unit price', 'rate', 'mrp', 'selling price', 'unit rate']),
     FieldSpec('invoice_number', False, 'The invoice or bill number',
-              ['invoice number', 'invoice no', 'bill no', 'bill number', 'voucher no']),
+              ['invoice number', 'invoice no', 'bill no', 'bill number', 'voucher no', 'order id',
+               'order no', 'order number', 'orderid', 'reference', 'ref no']),
     FieldSpec('customer_name', False, "The customer's name",
-              ['customer name', 'customer', 'client', 'buyer', 'party name', 'party']),
+              ['customer name', 'customer', 'client', 'buyer', 'party name', 'party', 'client name', 'sold to']),
     FieldSpec('description', False, 'A free-text description of the sale',
-              ['description', 'details', 'narration', 'remarks']),
+              ['description', 'details', 'narration', 'remarks', 'notes', 'city', 'location', 'region']),
     FieldSpec('due_date', False, 'The date payment is due',
               ['due date', 'payment due', 'due', 'payment due date']),
     FieldSpec('payment_status', False, 'Whether the invoice is paid, unpaid, or partial',
@@ -72,15 +80,15 @@ CUSTOMER_FIELDS: List[FieldSpec] = [
 
 INVENTORY_FIELDS: List[FieldSpec] = [
     FieldSpec('product_name', True, 'The name of the product or item',
-              ['product name', 'item name', 'product', 'item', 'description']),
+              ['product name', 'item name', 'product', 'item', 'description', 'goods', 'particulars']),
     FieldSpec('sku', False, 'The stock-keeping unit or item code',
-              ['sku', 'item code', 'product code', 'stock code']),
+              ['sku', 'item code', 'product code', 'stock code', 'code']),
     FieldSpec('quantity', False, 'The quantity in stock',
-              ['quantity', 'qty', 'stock quantity', 'closing stock', 'stock']),
+              ['quantity', 'qty', 'stock quantity', 'closing stock', 'stock', 'units', 'on hand', 'available']),
     FieldSpec('unit_cost', False, 'The cost per unit',
-              ['unit cost', 'cost price', 'rate', 'unit price', 'cost']),
+              ['unit cost', 'cost price', 'rate', 'unit price', 'cost', 'price', 'mrp', 'purchase price']),
     FieldSpec('reorder_level', False, 'The reorder threshold for this item',
-              ['reorder level', 'reorder point', 'minimum stock']),
+              ['reorder level', 'reorder point', 'minimum stock', 'min stock', 'reorder']),
     FieldSpec('location', False, 'Where the item is stored',
               ['location', 'warehouse', 'store', 'godown']),
 ]
@@ -124,3 +132,27 @@ def required_fields_for(document_type: str) -> List[str]:
 
 def all_fields_for(document_type: str) -> List[FieldSpec]:
     return FIELDS_BY_DOCUMENT_TYPE.get(document_type, [])
+
+
+# Priority order used when the document type is unknown/low-confidence and
+# the mapper matches across ALL types, then infers the type from which
+# fields won. Sales first because plain business spreadsheets are by far
+# the most common SME upload; statements last because their two generic
+# fields (line_label/amount) would otherwise greedily absorb everything.
+_INFERENCE_ORDER = ['sales', 'expense', 'inventory', 'customer', 'bank_statement', 'balance_sheet', 'profit_and_loss']
+
+
+def all_fields_across_types() -> List[tuple]:
+    """Returns (document_type, FieldSpec) pairs across every document type,
+    in inference-priority order. Used by the mapper when detection couldn't
+    confidently identify the document type, so columns can still be matched
+    and the type inferred from the winning fields."""
+    pairs = []
+    for doc_type in _INFERENCE_ORDER:
+        for spec in FIELDS_BY_DOCUMENT_TYPE.get(doc_type, []):
+            pairs.append((doc_type, spec))
+    return pairs
+
+
+def inference_order() -> List[str]:
+    return list(_INFERENCE_ORDER)

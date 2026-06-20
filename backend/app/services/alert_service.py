@@ -39,6 +39,26 @@ class AlertService:
 
         alert_engine = AlertRuleEngine(self.session, company_id, kpis['period_start'], kpis['period_end'])
         rules = alert_engine.generate_rules(kpis=kpis, health_score=health_score)
+
+        fresh_titles = {rule['title'] for rule in rules}
+
+        # Supersede stale auto-generated open alerts: any currently-open alert
+        # whose condition no longer fires in the latest data is resolved, so
+        # the Action Center never shows alerts that don't match current data.
+        stale = (
+            self.session.query(Alert)
+            .filter(
+                Alert.company_id == company_id,
+                Alert.status == 'open',
+                Alert.is_read == False,  # noqa: E712 -- don't touch user-acknowledged alerts
+            )
+            .all()
+        )
+        for old in stale:
+            if old.title not in fresh_titles:
+                old.status = 'resolved'
+                old.resolved_at = datetime.utcnow()
+
         alerts: List[Alert] = []
 
         for rule in rules:
@@ -57,8 +77,9 @@ class AlertService:
             self.session.add(alert)
             alerts.append(alert)
 
-        if alerts:
-            self.session.commit()
+        # Always commit -- stale resolutions must persist even when no new
+        # alerts are created.
+        self.session.commit()
         return alerts
 
     def list_alerts(

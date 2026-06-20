@@ -42,6 +42,21 @@ function CommandCenterPage() {
     load();
   }, [load]);
 
+  // Refetch when the tab/window regains focus, so returning to the dashboard
+  // after an import always reflects the latest alerts, KPIs, and actions
+  // even though this single-page app doesn't remount the component.
+  useEffect(() => {
+    const refetch = () => {
+      if (document.visibilityState === "visible") load();
+    };
+    window.addEventListener("focus", refetch);
+    document.addEventListener("visibilitychange", refetch);
+    return () => {
+      window.removeEventListener("focus", refetch);
+      document.removeEventListener("visibilitychange", refetch);
+    };
+  }, [load]);
+
   return (
     <div className="min-h-screen bg-bg">
       <Navbar />

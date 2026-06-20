@@ -28,6 +28,19 @@ class KPIService:
     def __init__(self, session: Session):
         self.session = session
 
+    def _data_date_range(self, company_id):
+        """Returns (latest_date, earliest_date) across sales and expenses for
+        the company, or (None, None) if there's no data. Used to window KPIs
+        around the company's real data rather than the calendar."""
+        sale_max = self.session.query(func.max(Sale.invoice_date)).filter(Sale.company_id == company_id).scalar()
+        sale_min = self.session.query(func.min(Sale.invoice_date)).filter(Sale.company_id == company_id).scalar()
+        exp_max = self.session.query(func.max(Expense.incurred_date)).filter(Expense.company_id == company_id).scalar()
+        exp_min = self.session.query(func.min(Expense.incurred_date)).filter(Expense.company_id == company_id).scalar()
+
+        maxes = [d for d in (sale_max, exp_max) if d is not None]
+        mins = [d for d in (sale_min, exp_min) if d is not None]
+        return (max(maxes) if maxes else None, min(mins) if mins else None)
+
     @staticmethod
     def _normalize_value(value: Any) -> Decimal:
         if value is None:
@@ -152,8 +165,16 @@ class KPIService:
         end_date: Optional[date] = None,
     ) -> Dict[str, Any]:
 
-        end_date = end_date or date.today()
-        start_date = start_date or (end_date - timedelta(days=29))
+        if end_date is None or start_date is None:
+            data_end, data_start = self._data_date_range(company_id)
+            if end_date is None:
+                end_date = data_end or date.today()
+            if start_date is None:
+                # Window the latest ~30 days of ACTUAL data, not the last 30
+                # calendar days from today -- otherwise uploaded historical
+                # data (older invoice dates) reads as zero and alerts/insights
+                # never change after an import.
+                start_date = max(end_date - timedelta(days=29), data_start) if data_start else (end_date - timedelta(days=29))
 
         revenue = self._get_revenue(company_id, start_date, end_date)
         total_expenses = self._get_total_expenses(company_id, start_date, end_date)

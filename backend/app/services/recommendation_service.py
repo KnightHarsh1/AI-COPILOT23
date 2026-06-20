@@ -150,6 +150,22 @@ class RecommendationService:
         )
         rules = engine.generate_recommendations()
 
+        fresh_keys = {(rule['recommendation_type'], rule['title']) for rule in rules}
+
+        # Supersede stale open recommendations no longer produced by the
+        # latest data, so the Action Center reflects current numbers.
+        stale = (
+            self.session.query(Recommendation)
+            .filter(
+                Recommendation.company_id == company_id,
+                Recommendation.status == 'open',
+            )
+            .all()
+        )
+        for old in stale:
+            if (old.recommendation_type, old.title) not in fresh_keys:
+                old.status = 'dismissed'
+
         recommendations: List[Recommendation] = []
         for rule in rules:
             if self._should_skip_duplicate(company_id, rule['recommendation_type'], rule['title']):
@@ -169,8 +185,7 @@ class RecommendationService:
             self.session.add(recommendation)
             recommendations.append(recommendation)
 
-        if recommendations:
-            self.session.commit()
+        self.session.commit()
         return recommendations
 
     def list_recommendations(

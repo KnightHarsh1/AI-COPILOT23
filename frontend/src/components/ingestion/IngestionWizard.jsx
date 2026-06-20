@@ -212,6 +212,7 @@ function IngestionWizard({ onComplete }) {
   // review | confirming
   const typeLabel = DOCUMENT_TYPE_LABELS[analyzeResult?.document_type] || analyzeResult?.document_type;
   const confidence = Math.round(analyzeResult?.detection_confidence || 0);
+  const autoMappedCount = mapping.filter((s) => s.suggested_field).length;
   const isMemoryHit = mapping.length > 0 && mapping[0]?.source === 'memory';
 
   return (
@@ -219,7 +220,7 @@ function IngestionWizard({ onComplete }) {
       {/* Detection banner */}
       <div className="flex flex-col gap-3 rounded-xl border border-border bg-bg-subtle p-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Detected format</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">AI detected</p>
           <p className="mt-1 font-semibold text-ink">{typeLabel}</p>
           {analyzeResult?.sheet_name && (
             <p className="mt-0.5 text-sm text-ink-muted">Sheet: {analyzeResult.sheet_name}</p>
@@ -237,6 +238,16 @@ function IngestionWizard({ onComplete }) {
           {confidence}% confidence
         </span>
       </div>
+
+      {/* Auto-mapped success note — reassures the user the AI did the work */}
+      {autoMappedCount > 0 && autoMappedCount >= mapping.length - 1 && (
+        <div className="flex items-center gap-2 rounded-xl border border-risk-low/20 bg-risk-low/5 px-5 py-3 text-sm text-risk-low">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 shrink-0">
+            <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <span>Columns mapped automatically — just review and confirm. Adjust any row if needed.</span>
+        </div>
+      )}
 
       {/* Memory-hit shortcut note */}
       {isMemoryHit && analyzeResult?.matched_template_id && (
