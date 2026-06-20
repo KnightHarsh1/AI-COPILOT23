@@ -23,39 +23,40 @@ function ScoreGauge({ score = 0, size = 160, showLabel = true, label }) {
   const data = [{ name: "score", value, fill: color }];
 
   return (
-    <div style={{ width: size, height: size, position: "relative" }}>
-      <ResponsiveContainer>
-        <RadialBarChart
-          innerRadius="72%"
-          outerRadius="100%"
-          data={data}
-          startAngle={225}
-          endAngle={-45}
+    <div className="flex shrink-0 flex-col items-center">
+      <div style={{ width: size, height: size, position: "relative" }}>
+        <ResponsiveContainer>
+          <RadialBarChart
+            innerRadius="72%"
+            outerRadius="100%"
+            data={data}
+            startAngle={225}
+            endAngle={-45}
+          >
+            <PolarAngleAxis type="number" domain={[0, 100]} angleAxisId={0} tick={false} />
+            <RadialBar background={{ fill: CHART_COLORS.border }} dataKey="value" cornerRadius={12} angleAxisId={0} />
+          </RadialBarChart>
+        </ResponsiveContainer>
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            pointerEvents: "none",
+          }}
         >
-          <PolarAngleAxis type="number" domain={[0, 100]} angleAxisId={0} tick={false} />
-          <RadialBar background={{ fill: CHART_COLORS.border }} dataKey="value" cornerRadius={12} angleAxisId={0} />
-        </RadialBarChart>
-      </ResponsiveContainer>
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          pointerEvents: "none",
-        }}
-      >
-        <span className="figure font-display font-bold text-ink" style={{ fontSize: size * 0.26, lineHeight: 1 }}>
-          {value}
-        </span>
-        {showLabel && (
-          <span className="text-xs font-semibold" style={{ color }}>
-            {label || scoreLabel(value)}
+          <span className="figure font-display font-bold text-ink" style={{ fontSize: size * 0.3, lineHeight: 1 }}>
+            {value}
           </span>
-        )}
+        </div>
       </div>
+      {showLabel && (
+        <span className="mt-1 whitespace-nowrap text-center text-xs font-semibold" style={{ color }}>
+          {label || scoreLabel(value)}
+        </span>
+      )}
     </div>
   );
 }

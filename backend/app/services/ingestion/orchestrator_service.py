@@ -41,13 +41,20 @@ from app.services.ingestion.parsers.gst_report_parser import GSTReportParser
 from app.services.ingestion.parsers.bank_statement_parser import BankStatementParser
 from app.services.ingestion.parsers.balance_sheet_parser import BalanceSheetParser
 from app.services.ingestion.parsers.profit_and_loss_parser import ProfitAndLossParser
+from app.services.ingestion.parsers.pdf_parser import PDFParser
+from app.services.ingestion.parsers.image_parser import ImageParser
 from app.services.ingestion.parsers import ParseError, RawTable
 from app.services.ingestion.staging_service import StagingService
 
 _PARSERS_BY_EXTENSION = {
     '.csv': CSVParser(),
     '.xlsx': XLSXParser(),
+    '.xls': XLSXParser(),
     '.xml': TallyXMLParser(),
+    '.pdf': PDFParser(),
+    '.png': ImageParser(),
+    '.jpg': ImageParser(),
+    '.jpeg': ImageParser(),
 }
 
 # Applied after generic parsing AND initial detection -- these refine

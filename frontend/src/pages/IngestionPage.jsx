@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Navbar from '../components/common/Navbar';
 import Sidebar from '../components/common/Sidebar';
 import DashboardCard from '../components/common/DashboardCard';
@@ -12,6 +12,7 @@ function IngestionPage() {
   const [templatesLoaded, setTemplatesLoaded] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [notification, setNotification] = useState(null);
+  const [historyKey, setHistoryKey] = useState(0);
 
   const loadTemplates = useCallback(async () => {
     if (templatesLoaded) return;
@@ -32,6 +33,7 @@ function IngestionPage() {
     // reflects the newly saved template.
     setTemplatesLoaded(false);
     loadTemplates();
+    setHistoryKey((k) => k + 1);
     setNotification({ type: 'success', message: 'Import complete. Your KPIs and health score have been refreshed.' });
     setTimeout(() => setNotification(null), 6000);
   }, [loadTemplates]);
@@ -98,6 +100,8 @@ function IngestionPage() {
           <section className="rounded-card border border-border bg-surface p-6 shadow-card">
             <IngestionWizard onComplete={handleWizardComplete} />
           </section>
+
+          <ImportHistory key={historyKey} labels={DOCUMENT_TYPE_LABELS} />
 
           {/* Remembered mappings panel */}
           <section className="rounded-card border border-border bg-surface p-6 shadow-card">
@@ -174,6 +178,56 @@ function IngestionPage() {
         </main>
       </div>
     </div>
+  );
+}
+
+function ImportHistory({ labels }) {
+  const [imports, setImports] = useState([]);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    ingestionService.importHistory()
+      .then((d) => { setImports(d.imports || []); setLoaded(true); })
+      .catch(() => setLoaded(true));
+  }, []);
+
+  if (loaded && imports.length === 0) return null;
+
+  const statusStyle = (s) => {
+    if (s === 'committed') return 'bg-risk-low/10 text-risk-low';
+    if (s === 'failed') return 'bg-risk-high/10 text-risk-high';
+    return 'bg-bg-subtle text-ink-muted';
+  };
+
+  return (
+    <section className="rounded-card border border-border bg-surface p-6 shadow-card">
+      <h2 className="font-semibold text-ink">Import history</h2>
+      <p className="mt-1 text-sm text-ink-muted">Your recent uploads and what happened to each.</p>
+      <div className="mt-4 overflow-x-auto rounded-card border border-border">
+        <table className="w-full text-sm">
+          <thead className="bg-bg-subtle">
+            <tr>
+              <th className="px-4 py-3 text-left font-semibold text-ink">Type</th>
+              <th className="px-4 py-3 text-left font-semibold text-ink">Sheet</th>
+              <th className="px-4 py-3 text-left font-semibold text-ink">Status</th>
+              <th className="px-4 py-3 text-left font-semibold text-ink">When</th>
+            </tr>
+          </thead>
+          <tbody>
+            {imports.map((b) => (
+              <tr key={b.id} className="border-t border-border">
+                <td className="px-4 py-3 text-ink">{labels[b.document_type] || b.document_type}</td>
+                <td className="px-4 py-3 text-ink-muted">{b.sheet_name || '—'}</td>
+                <td className="px-4 py-3">
+                  <span className={`rounded-pill px-2 py-0.5 text-xs font-semibold ${statusStyle(b.status)}`}>{b.status}</span>
+                </td>
+                <td className="px-4 py-3 text-ink-muted">{b.created_at ? formatDate(b.created_at) : '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }
 

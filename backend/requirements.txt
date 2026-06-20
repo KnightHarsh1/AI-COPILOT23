@@ -28,3 +28,10 @@ email-validator
 aiofiles
 
 requests
+
+pytest
+httpx
+apscheduler
+pdfplumber
+pytesseract
+Pillow

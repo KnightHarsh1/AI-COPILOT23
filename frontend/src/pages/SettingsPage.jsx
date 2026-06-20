@@ -558,6 +558,10 @@ function SettingsPage() {
             <TeamManager />
           </SectionCard>
 
+          <SectionCard title="Your data" description="Export everything or erase your business data.">
+            <DataPrivacy />
+          </SectionCard>
+
           <SectionCard title="Risk preferences" description="Tune how cautious your alerts and recommendations are.">
             <div className="inline-flex rounded-pill bg-bg-subtle p-1">
               {['cautious','balanced','aggressive'].map((r) => (
@@ -757,6 +761,12 @@ function PlansManager() {
               className={`mt-4 w-full rounded-pill px-4 py-2 text-sm font-semibold transition ${current ? 'bg-bg-subtle text-ink-muted' : 'bg-primary text-white hover:bg-primary-hover'} disabled:opacity-60`}>
               {current ? 'Current plan' : busy === p.id ? 'Processing…' : `Choose ${p.name}`}
             </button>
+            {current && p.id !== 'starter' && (
+              <button type="button" onClick={async () => { await BillingService.cancel(); const s = await BillingService.getStatus(); setStatus(s); }}
+                className="mt-2 w-full text-xs font-semibold text-risk-high">
+                Cancel &amp; downgrade
+              </button>
+            )}
           </div>
         );
       })}
@@ -802,6 +812,53 @@ function NotificationSettings() {
       <button type="button" onClick={sendDigest} className="rounded-pill border border-primary/30 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/10">
         Send me a summary now
       </button>
+    </div>
+  );
+}
+
+function DataPrivacy() {
+  const [status, setStatus] = useState(null);
+  const [confirming, setConfirming] = useState(false);
+
+  const exportData = async () => {
+    setStatus(null);
+    try {
+      const data = await GrowthService.exportData();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'business-copilot-export.json'; a.click();
+      URL.revokeObjectURL(url);
+      setStatus({ type: 'success', message: 'Your data was exported.' });
+    } catch (_) { setStatus({ type: 'error', message: 'Could not export data.' }); }
+  };
+
+  const erase = async () => {
+    if (!confirming) { setConfirming(true); return; }
+    setStatus(null);
+    try {
+      await GrowthService.deleteAccountData();
+      setConfirming(false);
+      setStatus({ type: 'success', message: 'All business data erased. You can re-import anytime.' });
+    } catch (_) { setStatus({ type: 'error', message: 'Could not erase data.' }); }
+  };
+
+  return (
+    <div className="space-y-3">
+      <StatusLine status={status} />
+      <button type="button" onClick={exportData}
+        className="rounded-pill border border-border px-4 py-2 text-sm font-semibold text-ink hover:bg-bg-subtle">
+        Export my data (JSON)
+      </button>
+      <div>
+        <button type="button" onClick={erase}
+          className={`rounded-pill px-4 py-2 text-sm font-semibold ${confirming ? 'bg-risk-high text-white' : 'border border-risk-high/40 text-risk-high hover:bg-risk-high/10'}`}>
+          {confirming ? 'Click again to confirm erase' : 'Erase all business data'}
+        </button>
+        {confirming && (
+          <button type="button" onClick={() => setConfirming(false)} className="ml-3 text-xs text-ink-muted">Cancel</button>
+        )}
+      </div>
     </div>
   );
 }

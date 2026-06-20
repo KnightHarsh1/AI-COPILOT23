@@ -5,7 +5,7 @@ import MappingReviewTable from './MappingReviewTable';
 import { ingestionService } from '../../services/ingestionService';
 import { formatNumber } from '../../utils/formatters';
 
-const ACCEPTED_TYPES = ['.csv', '.xlsx', '.xml'];
+const ACCEPTED_TYPES = ['.csv', '.xlsx', '.xls', '.xml', '.pdf', '.png', '.jpg', '.jpeg'];
 
 const DOCUMENT_TYPE_LABELS = {
   sales: 'Sales data',
@@ -123,7 +123,7 @@ function IngestionWizard({ onComplete }) {
           onFilesSelected={handleFilesSelected}
           acceptedTypes={ACCEPTED_TYPES}
           multiple={false}
-          helperText="CSV, XLSX, or Tally XML. We'll detect the format and walk you through mapping before anything is imported. Max 10 MB."
+          helperText="CSV, Excel, Tally XML, PDF (bank statements/invoices), or a photo. We'll detect the format and walk you through mapping before anything is imported. Max 10 MB."
         />
       </div>
     );

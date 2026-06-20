@@ -172,17 +172,101 @@ def update_phone(payload: PhoneUpdate, db: Session = Depends(get_db), current_us
 @router.get('/proactive-brief')
 def proactive_brief(db: Session = Depends(get_db), current_user: User = Depends(get_current_active_user)):
     """The AI CFO speaking first: the single most important thing to do now,
-    pulled from the action center, surfaced on dashboard load."""
+    pulled from the action center, surfaced on dashboard load — with a
+    citation of the numbers it's based on, so the owner can trust it."""
     from app.services.intelligence.action_center_service import ActionCenterService
+    from app.services.kpi_engine import KPIService
     actions = ActionCenterService(db).generate(current_user.company_id)
     top = (actions.get('today') or [])[:1]
     if not top:
         return {'has_action': False, 'message': "You're all caught up — nothing urgent right now."}
     a = top[0]
+    # Citation: the live figures this action draws on.
+    kpis = KPIService(db).calculate_kpis(current_user.company_id)
+    citations = []
+    if kpis.get('outstanding_receivables'):
+        citations.append(f"₹{kpis['outstanding_receivables']:,.0f} outstanding to collect")
+    if kpis.get('net_profit') is not None:
+        citations.append(f"net profit ₹{kpis['net_profit']:,.0f}")
+    if kpis.get('runway_months'):
+        citations.append(f"~{kpis['runway_months']:.1f} months runway")
     return {
         'has_action': True,
         'title': a['title'],
         'reason': a.get('reason'),
         'action': a.get('recommended_action'),
         'priority': a.get('priority'),
+        'based_on': citations,
     }
+
+
+class AskRequest(BaseModel):
+    question: str
+
+
+@router.post('/ask')
+def ask(payload: AskRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_active_user)):
+    from app.services.business_query_service import BusinessQueryService
+    return BusinessQueryService(db).ask(current_user.company_id, payload.question)
+
+
+@router.get('/score-change')
+def score_change(db: Session = Depends(get_db), current_user: User = Depends(get_current_active_user)):
+    from app.services.insight_support_service import HealthScoreDiffService
+    return HealthScoreDiffService(db).diff(current_user.company_id)
+
+
+@router.get('/notifications')
+def notifications(db: Session = Depends(get_db), current_user: User = Depends(get_current_active_user)):
+    """In-app notification center: recent notification + alert events."""
+    from app.db.models.growth import AuditLog
+    rows = db.query(AuditLog).filter(
+        AuditLog.company_id == current_user.company_id,
+        AuditLog.event_type.in_(['notification', 'import', 'compliance', 'invoice']),
+    ).order_by(AuditLog.created_at.desc()).limit(30).all()
+    return {'notifications': [{
+        'type': r.event_type, 'title': r.title, 'detail': r.detail,
+        'date': r.created_at.isoformat() if r.created_at else None,
+    } for r in rows]}
+
+
+@router.get('/export')
+def export_data(db: Session = Depends(get_db), current_user: User = Depends(get_current_active_user)):
+    """Data export (trust/portability): all of the company's core records."""
+    from app.db.models.sale import Sale
+    from app.db.models.expense import Expense
+    from app.db.models.inventory import InventoryItem
+    from app.db.models.customer import Customer
+    cid = current_user.company_id
+
+    def dump(model, fields):
+        out = []
+        for r in db.query(model).filter(model.company_id == cid).all():
+            out.append({f: (str(getattr(r, f)) if getattr(r, f, None) is not None else None) for f in fields})
+        return out
+
+    return {
+        'company_id': str(cid),
+        'sales': dump(Sale, ['invoice_date', 'amount', 'category', 'payment_status', 'amount_paid']),
+        'expenses': dump(Expense, ['incurred_date', 'vendor', 'category', 'amount']),
+        'inventory': dump(InventoryItem, ['product_name', 'quantity', 'unit_cost', 'reorder_level']),
+        'customers': dump(Customer, ['name', 'status']),
+    }
+
+
+@router.delete('/account')
+def delete_account_data(db: Session = Depends(get_db), current_user: User = Depends(require_role('owner'))):
+    """Delete all business data for the company (account-data erasure).
+    Keeps the login so the user can re-import; clears business records."""
+    from app.db.models.sale import Sale
+    from app.db.models.expense import Expense
+    from app.db.models.inventory import InventoryItem
+    from app.db.models.customer import Customer
+    from app.db.models.alert import Alert
+    from app.db.models.recommendation import Recommendation
+    cid = current_user.company_id
+    for model in (Sale, Expense, InventoryItem, Customer, Alert, Recommendation):
+        db.query(model).filter(model.company_id == cid).delete()
+    db.commit()
+    AuditService(db).log(cid, 'settings', 'Erased all business data', user_id=current_user.id)
+    return {'deleted': True}

@@ -33,3 +33,13 @@ class ActivateRequest(BaseModel):
 @router.post('/activate')
 def activate(payload: ActivateRequest, db: Session = Depends(get_db), current_user: User = Depends(require_role('owner'))):
     return BillingService(db).activate(current_user.company_id, payload.plan, payload.payment_id, payload.signature)
+
+
+@router.post('/cancel')
+def cancel(db: Session = Depends(get_db), current_user: User = Depends(require_role('owner'))):
+    return BillingService(db).cancel(current_user.company_id)
+
+
+@router.get('/invoices')
+def invoices(db: Session = Depends(get_db), current_user: User = Depends(get_current_active_user)):
+    return {'invoices': BillingService(db).invoices(current_user.company_id)}

@@ -16,18 +16,21 @@ from app.db.models.company import Company
 PLANS = {
     'starter': {
         'name': 'Starter', 'price_inr': 0,
-        'features': ['command_center', 'kpis', 'health_score', 'reports', 'collections', 'product', 'goals', 'coverage'],
+        'features': ['command_center', 'kpis', 'health_score', 'collections', 'goals', 'coverage'],
+        'limits': {'history_months': 3, 'imports_per_month': 10, 'team_members': 1},
     },
     'growth': {
         'name': 'Growth', 'price_inr': 999,
         'features': ['command_center', 'kpis', 'health_score', 'reports', 'collections', 'product', 'goals',
                      'coverage', 'market_radar', 'benchmark', 'compliance', 'weekly_digest', 'forecast'],
+        'limits': {'history_months': 24, 'imports_per_month': 200, 'team_members': 3},
     },
     'pro': {
         'name': 'Pro', 'price_inr': 2499,
         'features': ['command_center', 'kpis', 'health_score', 'reports', 'collections', 'product', 'goals',
                      'coverage', 'market_radar', 'benchmark', 'compliance', 'weekly_digest', 'forecast',
                      'whatsapp', 'team', 'priority_support', 'unlimited_history'],
+        'limits': {'history_months': 0, 'imports_per_month': 0, 'team_members': 0},  # 0 = unlimited
     },
 }
 
@@ -37,6 +40,10 @@ PREMIUM_FEATURES = {'market_radar', 'whatsapp', 'team', 'forecast', 'unlimited_h
 
 def plan_features(plan: str):
     return PLANS.get(plan or 'starter', PLANS['starter'])['features']
+
+
+def plan_limits(plan: str):
+    return PLANS.get(plan or 'starter', PLANS['starter']).get('limits', {})
 
 
 def has_feature(plan: str, feature: str) -> bool:
@@ -59,8 +66,10 @@ class BillingService:
             'plan_name': info['name'],
             'price_inr': info['price_inr'],
             'features': info['features'],
+            'limits': info.get('limits', {}),
             'all_plans': [
-                {'id': k, 'name': v['name'], 'price_inr': v['price_inr'], 'features': v['features']}
+                {'id': k, 'name': v['name'], 'price_inr': v['price_inr'],
+                 'features': v['features'], 'limits': v.get('limits', {})}
                 for k, v in PLANS.items()
             ],
             'razorpay_enabled': bool(getattr(settings, 'razorpay_key_id', '')),
@@ -72,8 +81,6 @@ class BillingService:
         amount = PLANS[plan]['price_inr'] * 100  # paise
         order_id = f"order_{int(time.time())}_{plan}"
         key = getattr(settings, 'razorpay_key_id', '')
-        # In manual mode (no keys) the frontend can confirm directly; with
-        # keys, this would call Razorpay's orders API.
         return {
             'ok': True, 'order_id': order_id, 'amount': amount, 'currency': 'INR',
             'plan': plan, 'razorpay_key_id': key, 'manual_mode': not bool(key),
@@ -83,8 +90,6 @@ class BillingService:
         if plan not in PLANS:
             return {'ok': False, 'reason': 'unknown plan'}
         secret = getattr(settings, 'razorpay_key_secret', '')
-        # If running with real keys, verify the signature; in manual mode,
-        # accept (dev/no-payment-gateway path).
         if secret and payment_id and signature:
             expected = hmac.new(secret.encode(), payment_id.encode(), hashlib.sha256).hexdigest()
             if not hmac.compare_digest(expected, signature):
@@ -92,11 +97,52 @@ class BillingService:
         company = self._company(company_id)
         if company is None:
             return {'ok': False, 'reason': 'company not found'}
+        # Idempotency: re-activating the same plan is a no-op success.
+        if company.plan == plan:
+            return {'ok': True, 'plan': plan, 'idempotent': True}
         company.plan = plan
         self.session.commit()
+        self._record_invoice(company_id, plan, PLANS[plan]['price_inr'], payment_id)
         try:
             from app.services.insight_support_service import AuditService
             AuditService(self.session).log(company_id, 'settings', f'Upgraded to {PLANS[plan]["name"]} plan')
         except Exception:
             pass
         return {'ok': True, 'plan': plan}
+
+    def cancel(self, company_id) -> dict:
+        """Downgrade to the free Starter plan."""
+        company = self._company(company_id)
+        if company is None:
+            return {'ok': False, 'reason': 'company not found'}
+        company.plan = 'starter'
+        self.session.commit()
+        try:
+            from app.services.insight_support_service import AuditService
+            AuditService(self.session).log(company_id, 'settings', 'Cancelled paid plan (downgraded to Starter)')
+        except Exception:
+            pass
+        return {'ok': True, 'plan': 'starter'}
+
+    def _record_invoice(self, company_id, plan, amount_inr, payment_id):
+        try:
+            from app.db.models.growth import AuditLog
+            self.session.add(AuditLog(
+                company_id=company_id, event_type='invoice',
+                title=f'Invoice: {PLANS[plan]["name"]} ₹{amount_inr}',
+                detail=f'plan={plan} amount_inr={amount_inr} payment_id={payment_id or "manual"}',
+            ))
+            self.session.commit()
+        except Exception:
+            self.session.rollback()
+
+    def invoices(self, company_id):
+        try:
+            from app.db.models.growth import AuditLog
+            rows = self.session.query(AuditLog).filter(
+                AuditLog.company_id == company_id, AuditLog.event_type == 'invoice'
+            ).order_by(AuditLog.created_at.desc()).all()
+            return [{'title': r.title, 'detail': r.detail,
+                     'date': r.created_at.isoformat() if r.created_at else None} for r in rows]
+        except Exception:
+            return []

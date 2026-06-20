@@ -31,6 +31,10 @@ export const ingestionService = {
     const response = await api.get('/ingestion/mapping-templates');
     return response.data;
   },
+  importHistory: async () => {
+    const response = await api.get('/ingestion/history');
+    return response.data;
+  },
 
   deleteMappingTemplate: async (templateId) => {
     const response = await api.delete(`/ingestion/mapping-templates/${templateId}`);

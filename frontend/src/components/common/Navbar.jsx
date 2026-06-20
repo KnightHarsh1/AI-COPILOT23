@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { navItems } from '../../constants/nav';
+import NotificationBell from './NotificationBell';
 
 const THEME_CYCLE = ['light', 'dark', 'system'];
 
@@ -105,6 +106,7 @@ function Navbar() {
           >
             {ICONS[theme]}
           </button>
+          <NotificationBell />
           <Link
             to="/app/settings"
             className="flex h-8 w-8 items-center justify-center rounded-full bg-bg-subtle text-xs font-semibold text-ink"

@@ -32,6 +32,11 @@ function ProactiveBrief() {
           {brief.action && (
             <p className="mt-1 text-sm text-ink"><span className="font-medium">Do this: </span>{brief.action}</p>
           )}
+          {brief.based_on && brief.based_on.length > 0 && (
+            <p className="mt-2 text-xs text-ink-muted">
+              <span className="font-medium">Based on:</span> {brief.based_on.join(" · ")}
+            </p>
+          )}
         </div>
       </div>
     </div>

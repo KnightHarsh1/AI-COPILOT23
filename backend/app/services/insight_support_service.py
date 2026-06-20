@@ -108,3 +108,73 @@ def explain_kpi(metric: str) -> str:
 
 def all_kpi_explanations() -> dict:
     return dict(_KPI_EXPLANATIONS)
+
+
+_COMPONENT_LABELS = {
+    'growth_health_score': 'Revenue growth',
+    'profitability_health_score': 'Profitability',
+    'inventory_health_score': 'Inventory',
+    'customer_health_score': 'Customer base',
+}
+
+
+class HealthScoreDiffService:
+    """Explains WHY the health score changed since the previous snapshot, in
+    plain language a non-financial owner understands. Compares the two most
+    recent persisted health Metric rows and attributes the movement to the
+    components that shifted the most."""
+
+    def __init__(self, session):
+        self.session = session
+
+    def diff(self, company_id) -> dict:
+        from app.db.models import Metric
+        rows = (
+            self.session.query(Metric)
+            .filter(Metric.company_id == company_id, Metric.name == 'health_score')
+            .order_by(Metric.period_end.desc(), Metric.id.desc())
+            .limit(2)
+            .all()
+        )
+        if len(rows) < 2:
+            return {'available': False, 'reason': 'Not enough history yet — upload again later to see what changed.'}
+
+        latest, prev = rows[0], rows[1]
+        latest_score = float(latest.value or 0)
+        prev_score = float(prev.value or 0)
+        delta = round(latest_score - prev_score, 1)
+
+        lc = (latest.payload or {}).get('components', {}) if isinstance(latest.payload, dict) else {}
+        pc = (prev.payload or {}).get('components', {}) if isinstance(prev.payload, dict) else {}
+
+        movers = []
+        for key, label in _COMPONENT_LABELS.items():
+            a = float(lc.get(key, 0) or 0)
+            b = float(pc.get(key, 0) or 0)
+            d = round(a - b, 1)
+            if abs(d) >= 0.5:
+                movers.append({'component': label, 'change': d,
+                               'direction': 'up' if d > 0 else 'down'})
+        movers.sort(key=lambda m: abs(m['change']), reverse=True)
+
+        if delta > 0:
+            headline = f"Your health score rose {abs(delta)} points to {latest_score:.0f}."
+        elif delta < 0:
+            headline = f"Your health score fell {abs(delta)} points to {latest_score:.0f}."
+        else:
+            headline = f"Your health score held steady at {latest_score:.0f}."
+
+        reasons = []
+        for m in movers[:3]:
+            verb = 'improved' if m['direction'] == 'up' else 'weakened'
+            reasons.append(f"{m['component']} {verb}")
+
+        return {
+            'available': True,
+            'current_score': round(latest_score),
+            'previous_score': round(prev_score),
+            'delta': delta,
+            'headline': headline,
+            'reasons': reasons,
+            'movers': movers[:4],
+        }

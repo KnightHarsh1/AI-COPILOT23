@@ -46,9 +46,34 @@ class NotificationDispatcher:
         self.audit.log(company_id, 'notification', subject, detail=body[:480], user_id=getattr(user, 'id', None))
         return results
 
-    def send_event_alert(self, company_id, title: str, message: str):
+    def _recently_sent(self, company_id, title: str, cooldown_days: int) -> bool:
+        """True if an identical notification was already sent within the
+        cooldown window — prevents daily nag-spam while a condition persists
+        (e.g. data stays overdue for a week)."""
+        try:
+            from datetime import datetime, timedelta, timezone
+            from app.db.models.growth import AuditLog
+            cutoff = datetime.now(timezone.utc) - timedelta(days=cooldown_days)
+            existing = (
+                self.session.query(AuditLog)
+                .filter(
+                    AuditLog.company_id == company_id,
+                    AuditLog.event_type == 'notification',
+                    AuditLog.title == f"Business Copilot: {title}",
+                    AuditLog.created_at >= cutoff,
+                )
+                .first()
+            )
+            return existing is not None
+        except Exception:
+            return False
+
+    def send_event_alert(self, company_id, title: str, message: str, cooldown_days: int = 0):
         """Called when a business event fires (overdue invoice, compliance
-        due-soon, health-score drop)."""
+        due-soon, health-score drop). cooldown_days>0 suppresses repeats of
+        the same alert within that window."""
+        if cooldown_days and self._recently_sent(company_id, title, cooldown_days):
+            return {'sent': False, 'suppressed': True}
         user = self._owner(company_id)
         if not user:
             return {'sent': False}
@@ -79,7 +104,8 @@ class NotificationDispatcher:
                 overdue = (col.get('aging', {}).get('d61_90', 0) + col.get('aging', {}).get('d90_plus', 0))
                 if overdue > 0:
                     self.send_event_alert(company_id, "Overdue payments need chasing",
-                                          f"You have approximately ₹{overdue:,.0f} unpaid for 60+ days. Follow up today.")
+                                          f"You have approximately ₹{overdue:,.0f} unpaid for 60+ days. Follow up today.",
+                                          cooldown_days=3)
                     fired.append('collections')
         except Exception:
             pass
@@ -90,7 +116,8 @@ class NotificationDispatcher:
                 for d in comp.get('upcoming', []):
                     if d.get('status') == 'due_soon':
                         self.send_event_alert(company_id, f"Filing due soon: {d['title']}",
-                                              f"{d['title']} is due on {d['due_date']}. Prepare and file to avoid penalties.")
+                                              f"{d['title']} is due on {d['due_date']}. Prepare and file to avoid penalties.",
+                                              cooldown_days=7)
                         fired.append('compliance')
                         break
         except Exception:
@@ -100,7 +127,8 @@ class NotificationDispatcher:
             fresh = UploadFreshnessService(self.session).status(company_id)
             if fresh.get('status') == 'overdue':
                 self.send_event_alert(company_id, "Your data is out of date",
-                                      fresh.get('message', 'Upload fresh data to keep insights accurate.'))
+                                      fresh.get('message', 'Upload fresh data to keep insights accurate.'),
+                                      cooldown_days=7)
                 fired.append('freshness')
         except Exception:
             pass

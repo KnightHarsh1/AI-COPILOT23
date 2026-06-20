@@ -27,10 +27,32 @@ from app.services.ingestion.parsers import ParseError
 
 router = APIRouter()
 
+
+@router.get('/history')
+def import_history(db: Session = Depends(get_db), current_user: User = Depends(get_current_active_user)):
+    """Recent imports for this company: what was imported, when, type, and
+    status — so owners can see and trust their import history."""
+    rows = (
+        db.query(IngestionBatch)
+        .filter(IngestionBatch.company_id == current_user.company_id)
+        .order_by(IngestionBatch.created_at.desc())
+        .limit(25)
+        .all()
+    )
+    return {'imports': [{
+        'id': str(b.id),
+        'document_type': b.document_type,
+        'sheet_name': b.sheet_name,
+        'status': b.status,
+        'confidence': float(b.detection_confidence or 0),
+        'created_at': b.created_at.isoformat() if b.created_at else None,
+        'committed_at': b.committed_at.isoformat() if b.committed_at else None,
+    } for b in rows]}
+
 # Superset of upload.py's allowed extensions -- .xml is needed for
 # Tally ERP9/TallyPrime XML exports. upload.py itself is intentionally
 # left untouched with its own narrower set.
-ALLOWED_EXTENSIONS = {'.csv', '.xlsx', '.xml'}
+ALLOWED_EXTENSIONS = {'.csv', '.xlsx', '.xls', '.xml', '.pdf', '.png', '.jpg', '.jpeg'}
 MAX_UPLOAD_SIZE = 10 * 1024 * 1024
 
 UPLOAD_DIR = Path(settings.upload_dir)
@@ -42,7 +64,8 @@ def _validate_extension(filename: str) -> str:
     if extension not in ALLOWED_EXTENSIONS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Unsupported file format. CSV, XLSX, and XML (Tally export) files are allowed.",
+            detail="Unsupported file format. You can upload CSV, Excel (XLSX/XLS), "
+                   "Tally XML, PDF (bank statements/invoices), or a photo (PNG/JPG).",
         )
     return extension
 

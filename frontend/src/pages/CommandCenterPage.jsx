@@ -15,6 +15,8 @@ import FreshnessBanner from "../components/command/FreshnessBanner";
 import BusinessProfileModal from "../components/command/BusinessProfileModal";
 import OnboardingCard from "../components/command/OnboardingCard";
 import ProactiveBrief from "../components/command/ProactiveBrief";
+import AskBox from "../components/command/AskBox";
+import ScoreChangeCard from "../components/command/ScoreChangeCard";
 import GoalsBenchmark from "../components/command/GoalsBenchmark";
 import CashKpiStrip from "../components/command/CashKpiStrip";
 import RevenueExpenseChart from "../components/common/charts/RevenueExpenseChart";
@@ -103,10 +105,16 @@ function CommandCenterPage() {
               {/* AI CFO proactive brief — speaks first */}
               <ProactiveBrief />
 
+              {/* Ask your business anything */}
+              <AskBox />
+
               {/* Onboarding / data coverage */}
               <OnboardingCard coverage={data.coverage} onChanged={load} />
 
               <HealthHero health={data.health} />
+
+              {/* Why your score changed */}
+              <ScoreChangeCard />
 
               {/* Cash & working capital KPIs */}
               <CashKpiStrip health={data.health} />

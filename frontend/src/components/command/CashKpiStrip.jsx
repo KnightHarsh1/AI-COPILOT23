@@ -10,20 +10,28 @@ const EXPLAIN = {
   churn_risk: "Share of past customers who stopped buying recently.",
 };
 
+function fontSizeForLength(text) {
+  const len = String(text).length;
+  if (len <= 8) return "text-xl";
+  if (len <= 11) return "text-lg";
+  if (len <= 14) return "text-base";
+  return "text-sm";
+}
+
 function Cell({ label, value, suffix = "", metric, isCurrency = true }) {
   const [show, setShow] = useState(false);
   const display = isCurrency ? formatCurrency(value) : `${Math.round(value || 0)}${suffix}`;
   return (
-    <div className="relative rounded-card border border-border bg-surface p-5 shadow-card">
-      <div className="flex items-center gap-1">
-        <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">{label}</p>
+    <div className="relative flex flex-col items-center justify-center rounded-card border border-border bg-surface p-5 text-center shadow-card">
+      <div className="flex items-center justify-center gap-1">
+        <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted whitespace-nowrap">{label}</p>
         <button type="button" onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)}
           onFocus={() => setShow(true)} onBlur={() => setShow(false)}
-          className="flex h-4 w-4 items-center justify-center rounded-full bg-bg-subtle text-[10px] font-bold text-ink-muted">?</button>
+          className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-bg-subtle text-[10px] font-bold text-ink-muted">?</button>
       </div>
-      <p className="figure mt-2 text-xl font-bold text-ink" style={{ wordBreak: "break-word" }}>{display}</p>
+      <p className={`figure mt-2 font-bold text-ink whitespace-nowrap ${fontSizeForLength(display)}`}>{display}</p>
       {show && (
-        <span className="absolute left-5 top-full z-10 mt-1 w-56 rounded-lg bg-ink px-3 py-2 text-xs font-medium text-surface shadow-lg">
+        <span className="absolute left-1/2 top-full z-10 mt-1 w-56 -translate-x-1/2 rounded-lg bg-ink px-3 py-2 text-xs font-medium text-surface shadow-lg">
           {EXPLAIN[metric]}
         </span>
       )}
