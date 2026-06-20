@@ -5,7 +5,7 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, File as UploadFileParam, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
-from app.api.api_v1.dependencies import get_current_active_user, get_db
+from app.api.api_v1.dependencies import get_current_active_user, get_db, require_role
 from app.core.config import settings
 from app.core.logging import logger
 from app.db.models.file import File
@@ -62,7 +62,7 @@ def _get_company_batch(db: Session, batch_id, company_id) -> IngestionBatch:
 async def analyze_file(
     file: UploadFile = UploadFileParam(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_role('manager')),
 ):
     extension = _validate_extension(file.filename)
     stored_filename = f"{uuid4()}{extension}"
@@ -181,7 +181,7 @@ async def confirm_batch(
     batch_id,
     payload: ConfirmRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_role('manager')),
 ):
     batch = _get_company_batch(db, batch_id, current_user.company_id)
 

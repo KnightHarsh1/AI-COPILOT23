@@ -46,3 +46,6 @@ class Company(Base):
     bank_transactions = relationship('BankTransaction', back_populates='company', cascade='all, delete-orphan')
     compliance_deadlines = relationship('ComplianceDeadline', back_populates='company', cascade='all, delete-orphan')
     market_insights = relationship('UserMarketInsight', back_populates='company', cascade='all, delete-orphan')
+    goals = relationship('Goal', back_populates='company', cascade='all, delete-orphan')
+    audit_logs = relationship('AuditLog', back_populates='company', cascade='all, delete-orphan')
+    team_members = relationship('TeamMember', back_populates='company', cascade='all, delete-orphan')

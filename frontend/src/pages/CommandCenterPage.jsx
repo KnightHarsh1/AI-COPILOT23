@@ -13,6 +13,10 @@ import ComplianceSetupModal from "../components/command/ComplianceSetupModal";
 import MarketRadarWidget from "../components/command/MarketRadarWidget";
 import FreshnessBanner from "../components/command/FreshnessBanner";
 import BusinessProfileModal from "../components/command/BusinessProfileModal";
+import OnboardingCard from "../components/command/OnboardingCard";
+import ProactiveBrief from "../components/command/ProactiveBrief";
+import GoalsBenchmark from "../components/command/GoalsBenchmark";
+import CashKpiStrip from "../components/command/CashKpiStrip";
 import RevenueExpenseChart from "../components/common/charts/RevenueExpenseChart";
 import ExpenseChart from "../components/common/charts/ExpenseChart";
 import HealthScoreChart from "../components/common/charts/HealthScoreChart";
@@ -96,10 +100,22 @@ function CommandCenterPage() {
           {!loading && data && (
             <>
               {/* Section 1 — Business Health */}
+              {/* AI CFO proactive brief — speaks first */}
+              <ProactiveBrief />
+
+              {/* Onboarding / data coverage */}
+              <OnboardingCard coverage={data.coverage} onChanged={load} />
+
               <HealthHero health={data.health} />
+
+              {/* Cash & working capital KPIs */}
+              <CashKpiStrip health={data.health} />
 
               {/* Upload freshness banner (only shows when due/overdue) */}
               <FreshnessBanner freshness={data.freshness} />
+
+              {/* Goals + benchmarking */}
+              <GoalsBenchmark goals={data.goals} benchmark={data.benchmark} onChanged={load} />
 
               {/* Section 2 — Daily AI Action Center */}
               <ActionCenter actionCenter={data.action_center} />

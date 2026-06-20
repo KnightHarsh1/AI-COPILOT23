@@ -7,6 +7,8 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { authService } from '../services/authService';
 import CommandCenterService from '../services/commandCenterService';
+import GrowthService from '../services/growthService';
+import BillingService from '../services/billingService';
 
 const AVATAR_COLORS = {
   indigo: '#4338ca', emerald: '#059669', amber: '#d97706',
@@ -544,6 +546,18 @@ function SettingsPage() {
             </div>
           </SectionCard>
 
+          <SectionCard title="Plan & billing" description="Upgrade to unlock Market Radar, WhatsApp alerts, team access and more.">
+            <PlansManager />
+          </SectionCard>
+
+          <SectionCard title="Notifications & WhatsApp" description="Get alerts and your weekly summary on email or WhatsApp.">
+            <NotificationSettings />
+          </SectionCard>
+
+          <SectionCard title="Team access" description="Invite your accountant or partner with the right role.">
+            <TeamManager />
+          </SectionCard>
+
           <SectionCard title="Risk preferences" description="Tune how cautious your alerts and recommendations are.">
             <div className="inline-flex rounded-pill bg-bg-subtle p-1">
               {['cautious','balanced','aggressive'].map((r) => (
@@ -685,6 +699,162 @@ function SettingsPage() {
           </SectionCard>
         </main>
       </div>
+    </div>
+  );
+}
+
+function PlansManager() {
+  const [status, setStatus] = useState(null);
+  const [busy, setBusy] = useState(null);
+
+  useEffect(() => {
+    BillingService.getStatus().then(setStatus).catch(() => {});
+  }, []);
+
+  const choose = async (planId) => {
+    if (!status || planId === status.plan) return;
+    setBusy(planId);
+    try {
+      const order = await BillingService.createOrder(planId);
+      if (order.manual_mode) {
+        await BillingService.activate(planId);
+      } else if (window.Razorpay) {
+        await new Promise((resolve) => {
+          const rzp = new window.Razorpay({
+            key: order.razorpay_key_id, amount: order.amount, currency: order.currency,
+            name: 'Business Copilot', order_id: order.order_id,
+            handler: async (resp) => { await BillingService.activate(planId, resp.razorpay_payment_id, resp.razorpay_signature); resolve(); },
+          });
+          rzp.open();
+        });
+      } else {
+        await BillingService.activate(planId);
+      }
+      const s = await BillingService.getStatus();
+      setStatus(s);
+    } catch (_) { /* non-fatal */ }
+    setBusy(null);
+  };
+
+  if (!status) return <p className="text-sm text-ink-muted">Loading plans…</p>;
+
+  return (
+    <div className="grid gap-4 sm:grid-cols-3">
+      {status.all_plans.map((p) => {
+        const current = p.id === status.plan;
+        return (
+          <div key={p.id} className={`rounded-card border p-4 ${current ? 'border-primary bg-primary/5' : 'border-border'}`}>
+            <p className="font-display text-lg font-bold text-ink">{p.name}</p>
+            <p className="figure mt-1 text-2xl font-bold text-ink">{p.price_inr === 0 ? 'Free' : `₹${p.price_inr}`}<span className="text-sm font-normal text-ink-muted">{p.price_inr ? '/mo' : ''}</span></p>
+            <ul className="mt-3 space-y-1 text-xs text-ink-muted">
+              {['market_radar','whatsapp','team','forecast'].map((f) => (
+                <li key={f} className={p.features.includes(f) ? 'text-ink' : 'line-through opacity-50'}>
+                  {p.features.includes(f) ? '✓' : '✕'} {f.replace('_',' ')}
+                </li>
+              ))}
+            </ul>
+            <button type="button" disabled={current || busy === p.id} onClick={() => choose(p.id)}
+              className={`mt-4 w-full rounded-pill px-4 py-2 text-sm font-semibold transition ${current ? 'bg-bg-subtle text-ink-muted' : 'bg-primary text-white hover:bg-primary-hover'} disabled:opacity-60`}>
+              {current ? 'Current plan' : busy === p.id ? 'Processing…' : `Choose ${p.name}`}
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function NotificationSettings() {
+  const [phone, setPhone] = useState('');
+  const [status, setStatus] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  const savePhone = async () => {
+    setSaving(true); setStatus(null);
+    try { await GrowthService.updatePhone(phone); setStatus({ type: 'success', message: 'WhatsApp number saved.' }); }
+    catch (_) { setStatus({ type: 'error', message: 'Could not save number.' }); }
+    setSaving(false);
+  };
+
+  const sendDigest = async () => {
+    setStatus(null);
+    try {
+      const r = await GrowthService.sendDigest();
+      setStatus({ type: 'success', message: r.sent ? 'Digest sent.' : 'Digest queued (configure email/WhatsApp provider to deliver).' });
+    } catch (_) { setStatus({ type: 'error', message: 'Could not send digest.' }); }
+  };
+
+  return (
+    <div className="space-y-4">
+      <StatusLine status={status} />
+      <label className="block">
+        <span className="text-sm font-medium text-ink">WhatsApp number</span>
+        <div className="mt-1 flex flex-col gap-2 sm:flex-row">
+          <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 98765 43210"
+            className="flex-1 rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink focus:border-primary focus:outline-none" />
+          <button type="button" onClick={savePhone} disabled={saving}
+            className="rounded-pill bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-hover disabled:opacity-60">
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+        <p className="mt-1 text-xs text-ink-muted">Alerts and your weekly summary can be sent here.</p>
+      </label>
+      <button type="button" onClick={sendDigest} className="rounded-pill border border-primary/30 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/10">
+        Send me a summary now
+      </button>
+    </div>
+  );
+}
+
+function TeamManager() {
+  const [members, setMembers] = useState([]);
+  const [email, setEmail] = useState('');
+  const [role, setRole] = useState('read_only');
+
+  useEffect(() => {
+    GrowthService.getTeam().then((d) => setMembers(d.members || [])).catch(() => {});
+  }, []);
+
+  const invite = async () => {
+    if (!email.trim()) return;
+    try {
+      await GrowthService.inviteMember({ email: email.trim(), role });
+      setEmail('');
+      const d = await GrowthService.getTeam();
+      setMembers(d.members || []);
+    } catch (_) { /* non-fatal */ }
+  };
+
+  const remove = async (id) => {
+    try { await GrowthService.removeMember(id); setMembers((m) => m.filter((x) => x.id !== id)); }
+    catch (_) { /* non-fatal */ }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="accountant@email.com"
+          className="flex-1 rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink focus:border-primary focus:outline-none" />
+        <select value={role} onChange={(e) => setRole(e.target.value)}
+          className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink focus:border-primary focus:outline-none">
+          <option value="accountant">Accountant</option>
+          <option value="manager">Manager</option>
+          <option value="read_only">Read only</option>
+        </select>
+        <button type="button" onClick={invite} className="rounded-pill bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-hover">
+          Invite
+        </button>
+      </div>
+      {members.length > 0 && (
+        <div className="space-y-2">
+          {members.map((m) => (
+            <div key={m.id} className="flex items-center justify-between rounded-lg bg-bg-subtle px-3 py-2 text-sm">
+              <span className="text-ink">{m.email} <span className="text-ink-muted">· {m.role} · {m.status}</span></span>
+              <button type="button" onClick={() => remove(m.id)} className="text-xs font-semibold text-risk-high">Remove</button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

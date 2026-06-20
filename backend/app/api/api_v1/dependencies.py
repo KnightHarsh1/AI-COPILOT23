@@ -41,3 +41,24 @@ def get_current_active_user(
             detail="Inactive user",
         )
     return current_user
+
+
+# Role hierarchy for team access control. The account owner (the User row)
+# always has full access; invited TeamMembers are constrained by their role.
+_ROLE_RANK = {'read_only': 0, 'manager': 1, 'accountant': 2, 'owner': 3}
+
+
+def require_role(minimum: str):
+    """Dependency factory enforcing a minimum team role for write actions.
+    The primary account user is always treated as owner. Endpoints that
+    mutate data should depend on this so an invited 'read_only' member
+    cannot write."""
+    def _guard(current_user: User = Depends(get_current_active_user)) -> User:
+        role = getattr(current_user, 'team_role', None) or 'owner'
+        if _ROLE_RANK.get(role, 3) < _ROLE_RANK.get(minimum, 0):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"This action requires '{minimum}' access or higher.",
+            )
+        return current_user
+    return _guard

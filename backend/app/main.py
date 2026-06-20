@@ -36,6 +36,12 @@ app.add_middleware(
 @app.on_event("startup")
 def on_startup():
     Base.metadata.create_all(bind=engine)
+    if getattr(settings, 'scheduler_enabled', True):
+        try:
+            from app.services.scheduler import scheduler
+            scheduler.start()
+        except Exception:
+            pass
 
 
 app.include_router(api_router, prefix="/api/v1")

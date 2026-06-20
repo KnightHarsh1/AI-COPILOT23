@@ -158,6 +158,66 @@ class KPIService:
     def _to_float(self, value: Decimal) -> float:
         return float(round(value, 4))
 
+    def _get_collected(self, company_id, start_date, end_date) -> Decimal:
+        total = self.session.query(func.coalesce(func.sum(Sale.amount_paid), 0)).filter(
+            Sale.company_id == company_id,
+            Sale.invoice_date >= start_date,
+            Sale.invoice_date <= end_date,
+        ).scalar()
+        return Decimal(str(total or 0))
+
+    def _get_outstanding_receivables(self, company_id) -> Decimal:
+        rows = self.session.query(
+            func.coalesce(func.sum(Sale.amount), 0),
+            func.coalesce(func.sum(Sale.amount_paid), 0),
+        ).filter(
+            Sale.company_id == company_id,
+            Sale.payment_status.in_(['unpaid', 'partial']),
+        ).first()
+        billed = Decimal(str(rows[0] or 0))
+        paid = Decimal(str(rows[1] or 0))
+        return max(Decimal('0'), billed - paid)
+
+    def _get_working_capital(self, company_id, outstanding: Decimal) -> Decimal:
+        # Approximation from available data: receivables + inventory value
+        # (current assets we can see) minus unpaid vendor bills (proxy = 0
+        # without payables data). Honest, data-available estimate.
+        inv_value = self.session.query(
+            func.coalesce(func.sum(InventoryItem.quantity * InventoryItem.unit_cost), 0)
+        ).filter(InventoryItem.company_id == company_id).scalar()
+        return outstanding + Decimal(str(inv_value or 0))
+
+    def _get_vendor_dependency(self, company_id, start_date, end_date) -> Decimal:
+        rows = self.session.query(
+            Expense.vendor, func.coalesce(func.sum(Expense.amount), 0)
+        ).filter(
+            Expense.company_id == company_id,
+            Expense.incurred_date >= start_date,
+            Expense.incurred_date <= end_date,
+        ).group_by(Expense.vendor).all()
+        if not rows:
+            return Decimal('0')
+        totals = [Decimal(str(r[1] or 0)) for r in rows]
+        grand = sum(totals)
+        if grand <= 0:
+            return Decimal('0')
+        return (max(totals) / grand) * Decimal('100')
+
+    def _get_churn_risk(self, company_id, end_date) -> Decimal:
+        # Share of customers who bought historically but not in the last 60
+        # days of data -- a simple, explainable churn-risk proxy.
+        cutoff = end_date - timedelta(days=60)
+        recent = self.session.query(func.count(func.distinct(Sale.customer_id))).filter(
+            Sale.company_id == company_id, Sale.customer_id.isnot(None),
+            Sale.invoice_date > cutoff,
+        ).scalar() or 0
+        total = self.session.query(func.count(func.distinct(Sale.customer_id))).filter(
+            Sale.company_id == company_id, Sale.customer_id.isnot(None),
+        ).scalar() or 0
+        if total <= 0:
+            return Decimal('0')
+        return (Decimal(total - recent) / Decimal(total)) * Decimal('100')
+
     def calculate_kpis(
         self,
         company_id,
@@ -189,6 +249,24 @@ class KPIService:
         inventory_turnover = self._get_inventory_turnover(company_id, start_date, end_date)
         growth_rate = self._get_growth_rate(company_id, start_date, end_date)
 
+        # --- Cash & working-capital KPIs (the numbers owners actually feel) ---
+        period_days = max((end_date - start_date).days + 1, 1)
+        collected = self._get_collected(company_id, start_date, end_date)
+        outstanding = self._get_outstanding_receivables(company_id)
+        cash_position = collected - total_expenses
+        # Receivable Days (DSO): outstanding / avg daily credit sales.
+        avg_daily_rev = (revenue / Decimal(period_days)) if revenue else Decimal('0')
+        receivable_days = (outstanding / avg_daily_rev) if avg_daily_rev else Decimal('0')
+        receivable_days = min(receivable_days, Decimal('365'))
+        # Burn / runway: only meaningful when running at a loss.
+        monthly_factor = Decimal(period_days) / Decimal('30')
+        net_monthly = (net_profit / monthly_factor) if monthly_factor else net_profit
+        burn_rate = -net_monthly if net_monthly < 0 else Decimal('0')
+        runway_months = (cash_position / burn_rate) if burn_rate > 0 and cash_position > 0 else Decimal('0')
+        working_capital = self._get_working_capital(company_id, outstanding)
+        vendor_dependency = self._get_vendor_dependency(company_id, start_date, end_date)
+        churn_risk = self._get_churn_risk(company_id, end_date)
+
         results = {
             'revenue': self._to_float(revenue),
             'gross_profit': self._to_float(gross_profit),
@@ -198,6 +276,14 @@ class KPIService:
             'growth_rate': self._to_float(growth_rate),
             'customer_value': self._to_float(customer_value),
             'inventory_turnover': self._to_float(inventory_turnover),
+            'cash_position': self._to_float(cash_position),
+            'outstanding_receivables': self._to_float(outstanding),
+            'receivable_days': self._to_float(receivable_days),
+            'burn_rate': self._to_float(burn_rate),
+            'runway_months': self._to_float(runway_months),
+            'working_capital': self._to_float(working_capital),
+            'vendor_dependency': self._to_float(vendor_dependency),
+            'churn_risk': self._to_float(churn_risk),
             'period_start': start_date,
             'period_end': end_date,
         }

@@ -24,5 +24,6 @@ def forecast(
     return {
         "forecast": ai_service.generate_forecast(
             current_user.company_id, current_user
-        )
+        ),
+        "confidence": ai_service.forecast_confidence(current_user.company_id),
     }

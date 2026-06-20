@@ -20,6 +20,16 @@ class Settings(BaseSettings):
     ingestion_engine_enabled: bool = True
     command_center_enabled: bool = True
     market_radar_enabled: bool = True
+    # Notification delivery (optional; logged if unset).
+    smtp_host: str = ''
+    smtp_port: int = 587
+    smtp_user: str = ''
+    smtp_password: str = ''
+    whatsapp_api_url: str = ''
+    whatsapp_api_token: str = ''
+    scheduler_enabled: bool = True
+    razorpay_key_id: str = ''
+    razorpay_key_secret: str = ''
 
     class Config:
         env_file = ".env"

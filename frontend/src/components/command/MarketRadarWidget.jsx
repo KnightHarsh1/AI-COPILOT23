@@ -70,6 +70,12 @@ function MarketRadarWidget({ data, onSetup, onChanged }) {
       <div className="rounded-card border border-border bg-surface p-5 shadow-card">
         <span className="text-base font-semibold text-ink">Market Radar</span>
         <p className="mt-3 text-sm text-ink-muted">{data?.reason || "Market radar not available yet."}</p>
+        {data?.locked && (
+          <a href="/app/settings"
+            className="mt-3 inline-block rounded-pill bg-primary px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-primary-hover">
+            Upgrade to unlock
+          </a>
+        )}
         {data?.needs_industry && (
           <button
             type="button"

@@ -7,6 +7,7 @@ from app.db.models.expense import Expense
 from app.db.models.file import File
 from app.db.models.financial_statement import FinancialStatementLine
 from app.db.models.ingestion import ColumnMappingTemplate, IngestionBatch, StagingRow
+from app.db.models.growth import Goal, AuditLog, TeamMember
 from app.db.models.inventory import InventoryItem
 from app.db.models.market import MarketSignal, UserMarketInsight
 from app.db.models.metric import Metric
@@ -26,6 +27,7 @@ __all__ = [
     'File',
     'FinancialStatementLine',
     'IngestionBatch',
+    'Goal', 'AuditLog', 'TeamMember',
     'InventoryItem',
     'MarketSignal',
     'Metric',

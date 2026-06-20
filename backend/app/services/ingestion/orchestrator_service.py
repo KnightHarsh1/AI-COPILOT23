@@ -295,6 +295,14 @@ class IngestionOrchestratorService:
             UploadFreshnessService(self.session).touch(batch.company_id)
         except Exception:
             pass
+        try:
+            from app.services.notification_dispatcher import NotificationDispatcher
+            from app.services.insight_support_service import AuditService
+            AuditService(self.session).log(batch.company_id, 'import',
+                                           f'Imported {batch.document_type} data', user_id=current_user.id)
+            NotificationDispatcher(self.session).run_daily_checks(batch.company_id)
+        except Exception:
+            pass
 
         return result
 

@@ -24,6 +24,9 @@ from app.services.intelligence.product_service import ProductIntelligenceService
 from app.services.intelligence.compliance_service import ComplianceIntelligenceService
 from app.services.market.radar_service import MarketRadarService
 from app.services.upload_freshness_service import UploadFreshnessService
+from app.services.insight_support_service import DataCoverageService
+from app.services.goal_service import GoalService
+from app.services.benchmark_service import BenchmarkService
 
 
 def _safe(fn, fallback):
@@ -63,6 +66,13 @@ class CommandCenterService:
             'expenses': summary.get('expenses', 0),
             'growth_rate': kpis.get('growth_rate', 0),
             'profit_margin': kpis.get('profit_margin', 0),
+            'cash_position': kpis.get('cash_position', 0),
+            'receivable_days': kpis.get('receivable_days', 0),
+            'runway_months': kpis.get('runway_months', 0),
+            'working_capital': kpis.get('working_capital', 0),
+            'vendor_dependency': kpis.get('vendor_dependency', 0),
+            'churn_risk': kpis.get('churn_risk', 0),
+            'burn_rate': kpis.get('burn_rate', 0),
         }
 
         # Section 2 — Daily AI Action Center
@@ -107,6 +117,13 @@ class CommandCenterService:
             {'available': False},
         )
 
+        # Data coverage meter, goals, benchmarking
+        coverage = _safe(lambda: DataCoverageService(self.session).coverage(company_id), {})
+        goals = _safe(lambda: GoalService(self.session).list_with_progress(company_id), {'available': False, 'goals': []})
+        company = self.session.query(__import__('app.db.models.company', fromlist=['Company']).Company).filter_by(id=company_id).one_or_none()
+        benchmark = _safe(lambda: BenchmarkService().compare(company.industry if company else None, kpis), {'available': False})
+        billing = _safe(lambda: __import__('app.services.billing_service', fromlist=['BillingService']).BillingService(self.session).status(company_id), {'plan': 'starter'})
+
         # Outstanding receivables surfaced into the health strip if available.
         if collections.get('available'):
             health_section['outstanding_receivables'] = collections.get('outstanding_receivables', 0)
@@ -121,5 +138,9 @@ class CommandCenterService:
             'product': product,
             'market': market,
             'freshness': freshness,
+            'coverage': coverage,
+            'goals': goals,
+            'benchmark': benchmark,
+            'billing': billing,
             'generated_at': date.today().isoformat(),
         }

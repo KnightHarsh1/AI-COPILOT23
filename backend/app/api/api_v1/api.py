@@ -15,6 +15,8 @@ from app.api.api_v1.endpoints import (
     chat,
     command_center,
     market_radar,
+    growth,
+    billing,
     executive_summary,
     dashboard_brief,
     monthly_report,
@@ -147,6 +149,18 @@ if settings.market_radar_enabled:
         prefix="/market-radar",
         tags=["market-radar"]
     )
+
+api_router.include_router(
+    growth.router,
+    prefix="/growth",
+    tags=["growth"]
+)
+
+api_router.include_router(
+    billing.router,
+    prefix="/billing",
+    tags=["billing"]
+)
 
 # Additive, parallel to /upload/ -- not a replacement. Gated behind a
 # flag so it can be disabled with a config change, never a deploy.

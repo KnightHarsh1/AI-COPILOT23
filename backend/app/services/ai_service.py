@@ -288,6 +288,30 @@ Generate:
         gemini = GeminiService()
         return gemini.generate_response(prompt)
 
+    def forecast_confidence(self, company_id) -> dict:
+        """Data-driven confidence label for the forecast: more months of
+        history + steadier trend = higher confidence. Explainable, no
+        black box."""
+        from app.db.models.sale import Sale
+        try:
+            rows = self.session.query(Sale.invoice_date).filter(Sale.company_id == company_id).all()
+            distinct_months = len({(d[0].year, d[0].month) for d in rows if d[0]})
+        except Exception:
+            distinct_months = 1
+        kpis = self.kpi_service.calculate_kpis(company_id)
+        growth = abs(float(kpis.get('growth_rate', 0) or 0))
+        if distinct_months >= 6 and growth < 30:
+            level, pct = 'High', 80
+        elif distinct_months >= 3:
+            level, pct = 'Medium', 60
+        else:
+            level, pct = 'Low', 35
+        return {
+            'level': level, 'score': pct,
+            'basis': f'{distinct_months} month(s) of data; {"steady" if growth < 30 else "volatile"} trend.',
+            'caveat': 'Forecasts are estimates, not guarantees. Confidence rises with more data history.',
+        }
+
     def get_business_context(
         self,
         company_id,

@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from typing import Optional
 from sqlalchemy.orm import Session
 
-from app.api.api_v1.dependencies import get_current_active_user, get_db
+from app.api.api_v1.dependencies import get_current_active_user, get_db, require_role
 from app.db.models.company import Company
 from app.db.models.user import User
 from app.services.command_center_service import CommandCenterService
@@ -50,7 +50,7 @@ def get_upload_freshness(
 def update_business_profile(
     payload: BusinessProfileUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_role('manager')),
 ):
     company = db.query(Company).filter(Company.id == current_user.company_id).one_or_none()
     if company is None:
@@ -83,7 +83,7 @@ def update_business_profile(
 def update_compliance_profile(
     payload: ComplianceProfileUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_role('manager')),
 ):
     company = db.query(Company).filter(Company.id == current_user.company_id).one_or_none()
     if company is None:

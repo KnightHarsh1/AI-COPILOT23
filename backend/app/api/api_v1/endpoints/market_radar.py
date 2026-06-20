@@ -14,6 +14,13 @@ def get_market_radar(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
+    # Premium feature: requires a plan that includes market_radar.
+    from app.db.models.company import Company
+    from app.services.billing_service import has_feature
+    company = db.query(Company).filter(Company.id == current_user.company_id).one_or_none()
+    if company and not has_feature(company.plan, 'market_radar'):
+        return {'available': False, 'locked': True,
+                'reason': 'Market Radar is a Growth plan feature. Upgrade to unlock external threat & opportunity intelligence.'}
     # Ensure the seed catalog exists so the radar is useful on first run.
     try:
         seed_market_signals(db)
