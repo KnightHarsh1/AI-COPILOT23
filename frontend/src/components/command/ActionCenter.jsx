@@ -30,8 +30,8 @@ function ActionCard({ action }) {
             <path d={iconPath} strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </span>
-        <span className="flex-1">
-          <span className="block text-sm font-semibold text-ink">{action.title}</span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-semibold text-ink break-words">{action.title}</span>
           <span className={`mt-0.5 inline-block rounded-pill px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${PRIORITY_STYLES[action.priority] || PRIORITY_STYLES.low}`}>
             {action.priority}
           </span>
@@ -41,7 +41,7 @@ function ActionCard({ action }) {
           fill="none"
           stroke="currentColor"
           strokeWidth="2"
-          className={`h-4 w-4 text-ink-muted transition-transform ${open ? "rotate-180" : ""}`}
+          className={`h-4 w-4 shrink-0 text-ink-muted transition-transform ${open ? "rotate-180" : ""}`}
         >
           <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
         </svg>

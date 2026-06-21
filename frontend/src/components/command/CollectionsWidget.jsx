@@ -66,9 +66,9 @@ function CollectionsWidget({ data }) {
             <h3 className="mb-2 text-sm font-semibold text-ink">Receivable aging</h3>
             <div className="space-y-2">
               {Object.entries(data.aging || {}).map(([bucket, amount]) => (
-                <div key={bucket} className="flex items-center justify-between rounded-lg bg-bg-subtle px-3 py-2 text-sm">
-                  <span className="text-ink-muted">{AGING_LABELS[bucket] || bucket}</span>
-                  <span className={`figure font-semibold ${bucket === "d90_plus" && amount > 0 ? "text-risk-high" : "text-ink"}`}>
+                <div key={bucket} className="flex items-center justify-between gap-2 rounded-lg bg-bg-subtle px-3 py-2 text-sm">
+                  <span className="min-w-0 truncate text-ink-muted">{AGING_LABELS[bucket] || bucket}</span>
+                  <span className={`figure shrink-0 whitespace-nowrap font-semibold ${bucket === "d90_plus" && amount > 0 ? "text-risk-high" : "text-ink"}`}>
                     {formatCurrency(amount)}
                   </span>
                 </div>
@@ -104,9 +104,9 @@ function CollectionsWidget({ data }) {
 
 function Stat({ label, value }) {
   return (
-    <div className="rounded-lg bg-bg-subtle px-3 py-2">
-      <p className="text-xs text-ink-muted">{label}</p>
-      <p className="figure mt-0.5 font-semibold text-ink">{value}</p>
+    <div className="min-w-0 rounded-lg bg-bg-subtle px-3 py-2">
+      <p className="truncate text-xs text-ink-muted">{label}</p>
+      <p className="figure mt-0.5 break-words font-semibold text-ink">{value}</p>
     </div>
   );
 }

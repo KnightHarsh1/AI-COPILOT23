@@ -36,6 +36,18 @@ app.add_middleware(
 @app.on_event("startup")
 def on_startup():
     Base.metadata.create_all(bind=engine)
+    # Surface optional import dependencies early so missing libs show up in
+    # server logs, not as a confused user mid-upload.
+    import logging
+    _log = logging.getLogger('startup')
+    try:
+        import pdfplumber  # noqa: F401
+    except Exception:
+        _log.warning("pdfplumber not installed — PDF import disabled. Run: pip install -r requirements.txt")
+    try:
+        import pytesseract  # noqa: F401
+    except Exception:
+        _log.warning("pytesseract not installed — photo/OCR import disabled.")
     if getattr(settings, 'scheduler_enabled', True):
         try:
             from app.services.scheduler import scheduler

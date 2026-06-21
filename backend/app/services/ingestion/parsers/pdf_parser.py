@@ -33,7 +33,9 @@ class PDFParser:
             import pdfplumber
         except Exception as exc:  # pragma: no cover
             raise ParseError(
-                "PDF support needs the 'pdfplumber' package. Install it, or upload the data as CSV/Excel."
+                "PDF support isn't enabled on the server yet. Run "
+                "'pip install -r requirements.txt' (or 'pip install pdfplumber') and restart, "
+                "or upload this data as CSV/Excel."
             ) from exc
 
         tables: List[RawTable] = []

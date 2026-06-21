@@ -23,6 +23,12 @@ import RevenueExpenseChart from "../components/common/charts/RevenueExpenseChart
 import ExpenseChart from "../components/common/charts/ExpenseChart";
 import HealthScoreChart from "../components/common/charts/HealthScoreChart";
 
+const TABS = [
+  { id: "today", label: "Today" },
+  { id: "intelligence", label: "Intelligence" },
+  { id: "goals", label: "Goals & trends" },
+];
+
 function CommandCenterPage() {
   const { user } = useAuth();
   const [data, setData] = useState(null);
@@ -30,6 +36,7 @@ function CommandCenterPage() {
   const [loadError, setLoadError] = useState(false);
   const [setupOpen, setSetupOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [tab, setTab] = useState("today");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -49,8 +56,7 @@ function CommandCenterPage() {
   }, [load]);
 
   // Refetch when the tab/window regains focus, so returning to the dashboard
-  // after an import always reflects the latest alerts, KPIs, and actions
-  // even though this single-page app doesn't remount the component.
+  // after an import always reflects the latest data even in this SPA.
   useEffect(() => {
     const refetch = () => {
       if (document.visibilityState === "visible") load();
@@ -63,6 +69,8 @@ function CommandCenterPage() {
     };
   }, [load]);
 
+  const incomplete = data?.coverage && !data.coverage.is_complete;
+
   return (
     <div className="min-h-screen bg-bg">
       <Navbar />
@@ -70,20 +78,25 @@ function CommandCenterPage() {
       <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:grid-cols-[280px_1fr] lg:px-6">
         <Sidebar />
 
-        <main className="space-y-6">
-          {/* Header */}
-          <section className="rounded-card border border-border bg-surface p-6 shadow-card">
-            <div className="flex items-center gap-4">
-              <Avatar user={user} />
-              <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">Business Command Center</p>
-                <h1 className="font-display mt-1 truncate text-2xl font-bold text-ink sm:text-3xl">
-                  {greeting()}{user?.first_name ? `, ${user.first_name}` : ""}
-                </h1>
-                <p className="mt-1 max-w-2xl text-sm leading-6 text-ink-muted">
-                  Everything that matters — health, what to do, what&rsquo;s risky, and why — in one place.
-                </p>
+        <main className="min-w-0 space-y-6">
+          {/* Briefing header */}
+          <section className="overflow-hidden rounded-card border border-border bg-surface shadow-card">
+            <div className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 items-center gap-4">
+                <Avatar user={user} />
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">
+                    {todayLabel()}
+                  </p>
+                  <h1 className="font-display mt-1 truncate text-2xl font-bold text-ink sm:text-3xl">
+                    {greeting()}{user?.first_name ? `, ${user.first_name}` : ""}
+                  </h1>
+                  <p className="mt-1 text-sm text-ink-muted">Here&rsquo;s what matters in your business today.</p>
+                </div>
               </div>
+              {data?.health?.health_score != null && (
+                <HealthBadge score={Math.round(data.health.health_score)} />
+              )}
             </div>
           </section>
 
@@ -95,77 +108,90 @@ function CommandCenterPage() {
 
           {loadError && !loading && (
             <section className="rounded-card border border-risk-high/30 bg-risk-high/5 p-4 text-sm text-risk-high">
-              Some data couldn&rsquo;t be loaded. Try refreshing the page.
+              Some data couldn&rsquo;t be loaded. Refresh the page to try again.
             </section>
           )}
 
           {!loading && data && (
             <>
-              {/* Section 1 — Business Health */}
-              {/* AI CFO proactive brief — speaks first */}
-              <ProactiveBrief />
+              {/* Setup first if data is incomplete — nothing else matters until then */}
+              {incomplete && <OnboardingCard coverage={data.coverage} onChanged={load} />}
 
-              {/* Ask your business anything */}
-              <AskBox />
-
-              {/* Onboarding / data coverage */}
-              <OnboardingCard coverage={data.coverage} onChanged={load} />
-
-              <HealthHero health={data.health} />
-
-              {/* Why your score changed */}
-              <ScoreChangeCard />
-
-              {/* Cash & working capital KPIs */}
-              <CashKpiStrip health={data.health} />
-
-              {/* Upload freshness banner (only shows when due/overdue) */}
-              <FreshnessBanner freshness={data.freshness} />
-
-              {/* Goals + benchmarking */}
-              <GoalsBenchmark goals={data.goals} benchmark={data.benchmark} onChanged={load} />
-
-              {/* Section 2 — Daily AI Action Center */}
-              <ActionCenter actionCenter={data.action_center} />
-
-              {/* Sections 4-6 — Intelligence widgets */}
-              <section>
-                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">
-                  Intelligence
-                </p>
-                <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-                  <CollectionsWidget data={data.collections} />
-                  <ProductWidget data={data.product} />
-                  <ComplianceWidget data={data.compliance} onSetup={() => setSetupOpen(true)} />
-                  <MarketRadarWidget data={data.market} onSetup={() => setProfileOpen(true)} onChanged={load} />
-                </div>
-              </section>
-
-              {/* Section 3 — AI Insights */}
-              <AIInsights insights={data.insights} />
-
-              {/* Charts */}
-              <div className="border-t border-border pt-2">
-                <p className="mb-4 text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">
-                  Trends &amp; charts
-                </p>
+              {/* Tabs keep the page calm: one focus at a time */}
+              <div className="flex gap-1 overflow-x-auto rounded-pill border border-border bg-surface p-1">
+                {TABS.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setTab(t.id)}
+                    className={`flex-1 whitespace-nowrap rounded-pill px-4 py-2 text-sm font-semibold transition ${
+                      tab === t.id ? "bg-primary text-white shadow-card" : "text-ink-muted hover:bg-bg-subtle hover:text-ink"
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
               </div>
 
-              <section className="rounded-card border border-border bg-surface p-6 shadow-card">
-                <h2 className="font-display mb-4 text-xl font-semibold text-ink">Revenue, expenses &amp; profit</h2>
-                <RevenueExpenseChart />
-              </section>
+              {tab === "today" && (
+                <div className="space-y-6">
+                  {/* The advisor speaks first */}
+                  <ProactiveBrief />
 
-              <section className="grid gap-6 lg:grid-cols-2">
-                <div className="rounded-card border border-border bg-surface p-6 shadow-card">
-                  <h2 className="font-display mb-4 text-xl font-semibold text-ink">Health trend</h2>
-                  <HealthScoreChart />
+                  {/* The four numbers + health, full width, never truncated */}
+                  <HealthHero health={data.health} />
+
+                  {/* Cash position in plain language with verdicts */}
+                  <CashKpiStrip health={data.health} />
+
+                  {/* What changed + freshness nudge. Each may be empty; they
+                      stack cleanly without leaving a lopsided grid cell. */}
+                  <div className="grid gap-5 [&>*]:min-w-0 sm:grid-cols-2 [&>*:only-child]:sm:col-span-2">
+                    <ScoreChangeCard />
+                    <FreshnessBanner freshness={data.freshness} />
+                  </div>
+
+                  {/* Today's actions */}
+                  <ActionCenter actionCenter={data.action_center} />
+
+                  {/* Ask anything */}
+                  <AskBox />
                 </div>
-                <div className="rounded-card border border-border bg-surface p-6 shadow-card">
-                  <h2 className="font-display mb-4 text-xl font-semibold text-ink">Expense breakdown</h2>
-                  <ExpenseChart />
+              )}
+
+              {tab === "intelligence" && (
+                <div className="space-y-6">
+                  <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                    <CollectionsWidget data={data.collections} />
+                    <ProductWidget data={data.product} />
+                    <ComplianceWidget data={data.compliance} onSetup={() => setSetupOpen(true)} />
+                    <MarketRadarWidget data={data.market} onSetup={() => setProfileOpen(true)} onChanged={load} />
+                  </div>
+                  <AIInsights insights={data.insights} />
                 </div>
-              </section>
+              )}
+
+              {tab === "goals" && (
+                <div className="space-y-6">
+                  <GoalsBenchmark goals={data.goals} benchmark={data.benchmark} onChanged={load} />
+
+                  <section className="overflow-hidden rounded-card border border-border bg-surface p-6 shadow-card">
+                    <h2 className="font-display mb-4 text-lg font-semibold text-ink">Revenue, expenses &amp; profit</h2>
+                    <RevenueExpenseChart />
+                  </section>
+
+                  <section className="grid gap-6 lg:grid-cols-2">
+                    <div className="overflow-hidden rounded-card border border-border bg-surface p-6 shadow-card">
+                      <h2 className="font-display mb-4 text-lg font-semibold text-ink">Health trend</h2>
+                      <HealthScoreChart />
+                    </div>
+                    <div className="overflow-hidden rounded-card border border-border bg-surface p-6 shadow-card">
+                      <h2 className="font-display mb-4 text-lg font-semibold text-ink">Expense breakdown</h2>
+                      <ExpenseChart />
+                    </div>
+                  </section>
+                </div>
+              )}
             </>
           )}
         </main>
@@ -184,8 +210,34 @@ function greeting() {
   return "Good evening";
 }
 
-// Avatar: uploaded picture if present, else chosen color preset, else
-// colored initials. Mirrors the Settings avatar options.
+function todayLabel() {
+  try {
+    return new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" });
+  } catch (_) {
+    return "Today";
+  }
+}
+
+function HealthBadge({ score }) {
+  const tones = {
+    good: "text-risk-low",
+    watch: "text-gold",
+    bad: "text-risk-high",
+  };
+  const key = score >= 70 ? "good" : score >= 45 ? "watch" : "bad";
+  const cls = tones[key];
+  const word = score >= 85 ? "Excellent" : score >= 70 ? "Healthy" : score >= 55 ? "Watch" : score >= 40 ? "Needs work" : "At risk";
+  return (
+    <div className="flex shrink-0 items-center gap-3 rounded-pill border border-border bg-bg-subtle px-4 py-2">
+      <span className={`figure text-2xl font-bold leading-none ${cls}`}>{score}</span>
+      <div className="leading-tight">
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-ink-muted">Health</p>
+        <p className={`text-xs font-semibold ${cls}`}>{word}</p>
+      </div>
+    </div>
+  );
+}
+
 const AVATAR_PRESET_COLORS = {
   indigo: "#4338ca", emerald: "#059669", amber: "#d97706",
   rose: "#e11d48", sky: "#0284c7", violet: "#7c3aed",
@@ -194,20 +246,12 @@ const AVATAR_PRESET_COLORS = {
 function Avatar({ user }) {
   const initials = ((user?.first_name?.[0] || "") + (user?.last_name?.[0] || "")).toUpperCase() || "B";
   if (user?.avatar_url) {
-    return (
-      <img
-        src={user.avatar_url}
-        alt=""
-        className="h-12 w-12 shrink-0 rounded-full object-cover ring-2 ring-primary/20"
-      />
-    );
+    return <img src={user.avatar_url} alt="" className="h-12 w-12 shrink-0 rounded-full object-cover ring-2 ring-primary/20" />;
   }
   if (user?.avatar_preset && AVATAR_PRESET_COLORS[user.avatar_preset]) {
     return (
-      <div
-        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-base font-bold text-white ring-2 ring-primary/20"
-        style={{ backgroundColor: AVATAR_PRESET_COLORS[user.avatar_preset] }}
-      >
+      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-base font-bold text-white ring-2 ring-primary/20"
+        style={{ backgroundColor: AVATAR_PRESET_COLORS[user.avatar_preset] }}>
         {initials}
       </div>
     );
