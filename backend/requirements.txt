@@ -1,37 +1,53 @@
-fastapi
-uvicorn[standard]
+# Business Copilot — backend dependencies
+# Python 3.11 or 3.12 recommended.
+# Install:  pip install -r requirements.txt
+#
+# Versions are pinned so the project installs identically on any machine.
+# If a pin ever conflicts with your Python version, remove the "==x.y.z"
+# from that single line and reinstall.
 
-sqlalchemy
-alembic
-psycopg2-binary
+# --- Web framework & server ---
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart==0.0.18          # file uploads (UploadFile)
 
-pydantic
-pydantic-settings
+# --- Database & migrations ---
+SQLAlchemy==2.0.36
+alembic==1.14.0
+psycopg2-binary==2.9.10           # PostgreSQL driver (production)
 
-python-multipart
+# --- Config & validation ---
+pydantic==2.10.4
+pydantic-settings==2.7.0
+email-validator==2.2.0            # pydantic EmailStr
 
-pandas
-openpyxl
-
-python-jose[cryptography]
+# --- Auth & security ---
+python-jose[cryptography]==3.3.0  # JWT
 passlib[bcrypt]==1.7.4
-bcrypt==4.0.1
+bcrypt==4.0.1                     # pinned: passlib 1.7.4 needs bcrypt <4.1
 
-python-dotenv
+# --- Data / spreadsheets ---
+pandas==2.2.3
+openpyxl==3.1.5                   # Excel (.xlsx) read/write engine
 
-reportlab
+# --- Document & file import ---
+reportlab==4.2.5                  # PDF report generation
+pdfplumber==0.11.5                # PDF import (bank statements, invoices)
+pytesseract==0.3.13               # photo/OCR import (needs system Tesseract)
+Pillow==11.0.0                    # image handling for OCR
 
-google-generativeai
+# --- AI ---
+google-generativeai==0.8.3        # Gemini
 
-email-validator
+# --- Scheduling (daily checks, weekly digests) ---
+APScheduler==3.11.0
 
-aiofiles
+# --- HTTP (WhatsApp/webhook calls) ---
+requests==2.32.3
 
-requests
+# --- Environment files (optional; pydantic-settings reads .env natively) ---
+python-dotenv==1.0.1
 
-pytest
-httpx
-apscheduler
-pdfplumber
-pytesseract
-Pillow
+# --- Testing ---
+pytest==8.3.4
+httpx==0.28.1                     # FastAPI TestClient

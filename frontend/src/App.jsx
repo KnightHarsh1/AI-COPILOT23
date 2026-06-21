@@ -17,11 +17,13 @@ import { AuthProvider } from './context/AuthContext';
 import { AppProvider } from './context/AppContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { AppearanceProvider } from './context/AppearanceContext';
 
 function App() {
   return (
     <AuthProvider>
       <ThemeProvider>
+      <AppearanceProvider>
       <AppProvider>
         <NotificationProvider>
           <Router>
@@ -68,6 +70,7 @@ function App() {
           </Router>
         </NotificationProvider>
       </AppProvider>
+      </AppearanceProvider>
       </ThemeProvider>
     </AuthProvider>
   );

@@ -33,6 +33,7 @@ class UserRead(UserBase):
     is_active: bool
     is_superuser: bool
     theme: str = 'system'
+    appearance_preferences: Optional[dict] = None
     email_alerts_enabled: bool = True
     risk_alerts_enabled: bool = True
     weekly_reports_enabled: bool = True
@@ -64,6 +65,7 @@ class PasswordChangeRequest(BaseModel):
 
 class UserPreferencesUpdate(BaseModel):
     theme: Optional[str] = None
+    appearance_preferences: Optional[dict] = None
     email_alerts_enabled: Optional[bool] = None
     risk_alerts_enabled: Optional[bool] = None
     weekly_reports_enabled: Optional[bool] = None

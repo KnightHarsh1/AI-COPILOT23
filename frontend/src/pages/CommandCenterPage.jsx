@@ -1,11 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
+import { useAppearance } from "../context/AppearanceContext";
+import { resolveAppearance } from "../components/appearance/resolveAppearance";
+import HealthScore from "../components/appearance/HealthScore";
+import KpiGrid from "../components/appearance/KpiGrid";
+import ChartFactory from "../components/appearance/ChartFactory";
+import InsightsPanel from "../components/appearance/InsightsPanel";
 import Navbar from "../components/common/Navbar";
 import Sidebar from "../components/common/Sidebar";
 import CommandCenterService from "../services/commandCenterService";
 import HealthHero from "../components/command/HealthHero";
 import ActionCenter from "../components/command/ActionCenter";
-import AIInsights from "../components/command/AIInsights";
 import CollectionsWidget from "../components/command/CollectionsWidget";
 import ProductWidget from "../components/command/ProductWidget";
 import ComplianceWidget from "../components/command/ComplianceWidget";
@@ -14,13 +19,11 @@ import MarketRadarWidget from "../components/command/MarketRadarWidget";
 import FreshnessBanner from "../components/command/FreshnessBanner";
 import BusinessProfileModal from "../components/command/BusinessProfileModal";
 import OnboardingCard from "../components/command/OnboardingCard";
-import HealthBadge from "../components/command/HealthBadge";
 import ProactiveBrief from "../components/command/ProactiveBrief";
 import AskBox from "../components/command/AskBox";
 import ScoreChangeCard from "../components/command/ScoreChangeCard";
 import GoalsBenchmark from "../components/command/GoalsBenchmark";
 import CashKpiStrip from "../components/command/CashKpiStrip";
-import RevenueExpenseChart from "../components/common/charts/RevenueExpenseChart";
 import ExpenseChart from "../components/common/charts/ExpenseChart";
 import HealthScoreChart from "../components/common/charts/HealthScoreChart";
 
@@ -32,6 +35,8 @@ const TABS = [
 
 function CommandCenterPage() {
   const { user } = useAuth();
+  const { appearance } = useAppearance();
+  const ui = resolveAppearance(appearance);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -96,7 +101,7 @@ function CommandCenterPage() {
                 </div>
               </div>
               {data?.health?.health_score != null && (
-                <HealthBadge score={Math.round(data.health.health_score)} />
+                <HealthScore score={Math.round(data.health.health_score)} style={ui.healthStyle} skin={ui.healthSkin} />
               )}
             </div>
           </section>
@@ -139,8 +144,13 @@ function CommandCenterPage() {
                   {/* The advisor speaks first */}
                   <ProactiveBrief />
 
-                  {/* The four numbers + health, full width, never truncated */}
-                  <HealthHero health={data.health} />
+                  {/* The four numbers + health. Classic keeps the rich
+                      HealthHero; other styles use the KPI grid variant. */}
+                  {ui.kpiStyle === "classic" ? (
+                    <HealthHero health={data.health} />
+                  ) : (
+                    <KpiGrid health={data.health} style={ui.kpiStyle} />
+                  )}
 
                   {/* Cash position in plain language with verdicts */}
                   <CashKpiStrip health={data.health} />
@@ -168,7 +178,7 @@ function CommandCenterPage() {
                     <ComplianceWidget data={data.compliance} onSetup={() => setSetupOpen(true)} />
                     <MarketRadarWidget data={data.market} onSetup={() => setProfileOpen(true)} onChanged={load} />
                   </div>
-                  <AIInsights insights={data.insights} />
+                  <InsightsPanel insights={data.insights} variant={ui.insightsStyle} />
                 </div>
               )}
 
@@ -176,10 +186,7 @@ function CommandCenterPage() {
                 <div className="space-y-6">
                   <GoalsBenchmark goals={data.goals} benchmark={data.benchmark} onChanged={load} />
 
-                  <section className="overflow-hidden rounded-card border border-border bg-surface p-6 shadow-card">
-                    <h2 className="font-display mb-4 text-lg font-semibold text-ink">Revenue, expenses &amp; profit</h2>
-                    <RevenueExpenseChart />
-                  </section>
+                  <ChartFactory variant={ui.mainChart} health={data.health} />
 
                   <section className="grid gap-6 lg:grid-cols-2">
                     <div className="overflow-hidden rounded-card border border-border bg-surface p-6 shadow-card">

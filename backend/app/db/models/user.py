@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String, Text
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String, Text, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.base import Base, UUID
@@ -19,6 +19,7 @@ class User(Base):
 
     # Theme & display preferences
     theme = Column(String(16), nullable=False, default='system')
+    appearance_preferences = Column(JSON, nullable=True)  # dashboard theme, health style/skin, custom layout
 
     # Notification preferences
     email_alerts_enabled = Column(Boolean, default=True, nullable=False)

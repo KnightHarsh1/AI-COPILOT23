@@ -102,3 +102,26 @@ h1, h2, h3, h4, .font-display {
     transition-duration: 0.001ms !important;
   }
 }
+
+/* Appearance system: health-score animations + density.
+   Honour the user's "Animations: Off" choice via the data attribute. */
+@keyframes ai-orb-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.7; }
+  50% { transform: scale(1.08); opacity: 0.9; }
+}
+
+html[data-animations="off"] *,
+html[data-animations="off"] *::before,
+html[data-animations="off"] *::after {
+  animation: none !important;
+  transition: none !important;
+}
+
+/* Compact / data-heavy density shrink card padding app-wide. */
+html[data-density="compact"] .rounded-card,
+html[data-density="dataHeavy"] .rounded-card { }
+
+@keyframes spk-draw {
+  from { stroke-dashoffset: 240; }
+  to { stroke-dashoffset: 0; }
+}

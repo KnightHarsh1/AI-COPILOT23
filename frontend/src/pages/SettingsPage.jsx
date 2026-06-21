@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/common/Navbar';
+import AppearanceSettings from '../components/appearance/AppearanceSettings';
 import Sidebar from '../components/common/Sidebar';
 import Button from '../components/common/Button';
 import { useAuth } from '../context/AuthContext';
@@ -363,6 +364,10 @@ function SettingsPage() {
               ))}
             </div>
             <p className="mt-3 text-xs text-ink-muted">Saved automatically and remembered after you refresh.</p>
+          </SectionCard>
+
+          <SectionCard title="Dashboard & health style" description="Switch dashboard themes, health-score styles, skins, and build your own layout.">
+            <AppearanceSettings />
           </SectionCard>
 
           <SectionCard title="Profile" description="Your name, email, and company details.">

@@ -175,6 +175,12 @@ def update_preferences(
             raise HTTPException(status_code=400, detail=f"theme must be one of {sorted(VALID_THEMES)}")
         current_user.theme = payload.theme
 
+    if payload.appearance_preferences is not None:
+        # Stored as opaque JSON; the frontend validates/sanitizes the shape.
+        # We guard size so a malformed client can't bloat the row.
+        if isinstance(payload.appearance_preferences, dict) and len(payload.appearance_preferences) <= 50:
+            current_user.appearance_preferences = payload.appearance_preferences
+
     if payload.ai_personality is not None:
         if payload.ai_personality not in VALID_PERSONALITIES:
             raise HTTPException(status_code=400, detail=f"ai_personality must be one of {sorted(VALID_PERSONALITIES)}")
