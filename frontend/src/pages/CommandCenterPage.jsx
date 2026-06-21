@@ -14,6 +14,7 @@ import MarketRadarWidget from "../components/command/MarketRadarWidget";
 import FreshnessBanner from "../components/command/FreshnessBanner";
 import BusinessProfileModal from "../components/command/BusinessProfileModal";
 import OnboardingCard from "../components/command/OnboardingCard";
+import HealthBadge from "../components/command/HealthBadge";
 import ProactiveBrief from "../components/command/ProactiveBrief";
 import AskBox from "../components/command/AskBox";
 import ScoreChangeCard from "../components/command/ScoreChangeCard";
@@ -216,26 +217,6 @@ function todayLabel() {
   } catch (_) {
     return "Today";
   }
-}
-
-function HealthBadge({ score }) {
-  const tones = {
-    good: "text-risk-low",
-    watch: "text-gold",
-    bad: "text-risk-high",
-  };
-  const key = score >= 70 ? "good" : score >= 45 ? "watch" : "bad";
-  const cls = tones[key];
-  const word = score >= 85 ? "Excellent" : score >= 70 ? "Healthy" : score >= 55 ? "Watch" : score >= 40 ? "Needs work" : "At risk";
-  return (
-    <div className="flex shrink-0 items-center gap-3 rounded-pill border border-border bg-bg-subtle px-4 py-2">
-      <span className={`figure text-2xl font-bold leading-none ${cls}`}>{score}</span>
-      <div className="leading-tight">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-ink-muted">Health</p>
-        <p className={`text-xs font-semibold ${cls}`}>{word}</p>
-      </div>
-    </div>
-  );
 }
 
 const AVATAR_PRESET_COLORS = {
