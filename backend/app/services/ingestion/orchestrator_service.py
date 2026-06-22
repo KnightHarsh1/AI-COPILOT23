@@ -29,6 +29,8 @@ from app.services.alert_service import AlertService
 from app.services.gemini_service import GeminiService
 from app.services.recommendation_service import RecommendationService
 from app.services.ingestion.canonical_field_dictionary import required_fields_for
+from app.services.ingestion.data_profiler import DataProfiler
+from app.services.ingestion.business_readiness import BusinessReadinessEngine
 from app.services.ingestion.column_mapping_service import ColumnMappingService
 from app.services.ingestion.format_detector import FormatDetectorService
 from app.services.ingestion.mapping_memory_service import MappingMemoryService, compute_signature_hash
@@ -137,6 +139,25 @@ class IngestionOrchestratorService:
             company_id, compute_signature_hash(table.headers)
         )
 
+        # Profile the file and score analysis-readiness for the wizard.
+        try:
+            profiling = DataProfiler().profile(table, mapping)
+        except Exception:
+            profiling = None
+        # For statement-style files the meaning is in the first-column row
+        # labels, so expose them to the readiness engine.
+        if profiling is not None:
+            try:
+                profiling['label_text'] = " ".join(
+                    str(r[0]) for r in table.rows[:60] if r and r[0] is not None
+                )
+            except Exception:
+                pass
+        try:
+            business_readiness = BusinessReadinessEngine().score(mapping, profiling, effective_type)
+        except Exception:
+            business_readiness = None
+
         return AnalyzeResponse(
             batch_id=batch.id,
             document_type=effective_type,
@@ -166,6 +187,8 @@ class IngestionOrchestratorService:
             required_fields_missing=self.staging.missing_required_fields(batch, mapping),
             matched_template_id=matched_template.id if matched_template else None,
             data_quality=self._quality(batch, self.staging.missing_required_fields(batch, mapping)),
+            profiling=profiling,
+            business_readiness=business_readiness,
         )
 
     def _pick_best_table(self, tables: List[RawTable], filename: str):

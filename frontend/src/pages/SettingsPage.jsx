@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/common/Navbar';
 import AppearanceSettings from '../components/appearance/AppearanceSettings';
+import { useAccessProfile, ROLE_OPTIONS } from '../context/AccessProfileContext';
 import Sidebar from '../components/common/Sidebar';
 import Button from '../components/common/Button';
 import { useAuth } from '../context/AuthContext';
@@ -559,6 +560,10 @@ function SettingsPage() {
             <NotificationSettings />
           </SectionCard>
 
+          <SectionCard title="Access profile" description="Preview the app as a different role. Your real permissions don't change.">
+            <AccessProfileSwitcher />
+          </SectionCard>
+
           <SectionCard title="Team access" description="Invite your accountant or partner with the right role.">
             <TeamManager />
           </SectionCard>
@@ -863,6 +868,61 @@ function DataPrivacy() {
         {confirming && (
           <button type="button" onClick={() => setConfirming(false)} className="ml-3 text-xs text-ink-muted">Cancel</button>
         )}
+      </div>
+    </div>
+  );
+}
+
+function AccessProfileSwitcher() {
+  const { realRole, viewRole, isPreviewing, canSwitch, changeViewRole, reset } = useAccessProfile();
+
+  const ROLE_LABEL = Object.fromEntries(ROLE_OPTIONS.map((o) => [o.value, o.label]));
+
+  if (!canSwitch) {
+    return (
+      <div className="rounded-card border border-border bg-bg-subtle px-4 py-3">
+        <p className="text-sm text-ink">
+          Your role: <span className="font-semibold">{ROLE_LABEL[realRole] || realRole}</span>
+        </p>
+        <p className="mt-1 text-xs text-ink-muted">Only the account owner can preview other access profiles.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {isPreviewing && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-card border border-gold/30 bg-gold/5 px-4 py-3">
+          <p className="text-sm text-gold">
+            Previewing as <span className="font-semibold">{ROLE_LABEL[viewRole]}</span>. Your real permissions are still Owner.
+          </p>
+          <button type="button" onClick={reset} className="rounded-pill bg-gold/20 px-3 py-1 text-xs font-semibold text-gold hover:bg-gold/30">
+            Exit preview
+          </button>
+        </div>
+      )}
+      <div className="grid gap-2 sm:grid-cols-2">
+        {ROLE_OPTIONS.map((o) => {
+          const active = viewRole === o.value;
+          return (
+            <button
+              key={o.value}
+              type="button"
+              onClick={() => changeViewRole(o.value)}
+              className={`flex flex-col items-start rounded-card border p-4 text-left transition ${
+                active ? "border-primary bg-primary/5" : "border-border bg-surface hover:bg-bg-subtle"
+              }`}
+            >
+              <span className="flex w-full items-center justify-between">
+                <span className={`text-sm font-semibold ${active ? "text-primary" : "text-ink"}`}>{o.label}</span>
+                {o.value === realRole && (
+                  <span className="rounded-pill bg-bg-subtle px-2 py-0.5 text-[10px] font-semibold text-ink-muted">Your role</span>
+                )}
+              </span>
+              <span className="mt-1 text-xs text-ink-muted">{o.desc}</span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

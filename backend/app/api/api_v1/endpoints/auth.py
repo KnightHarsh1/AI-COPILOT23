@@ -55,6 +55,7 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
         first_name=user_in.first_name,
         last_name=user_in.last_name,
         hashed_password=get_password_hash(user_in.password),
+        team_role='owner',
     )
 
     db.add(user)

@@ -59,14 +59,23 @@ _SIGNATURES: List[_Signature] = [
     ),
     _Signature(
         document_type='balance_sheet',
-        header_patterns=_compiled(r'sundry debtors', r'sundry creditors', r'share capital', r'fixed assets'),
+        header_patterns=_compiled(r'sundry debtors', r'sundry creditors', r'share capital', r'fixed assets',
+                                  r'total assets', r'total liabilities', r'current assets', r'current liabilities',
+                                  r"owner'?s equity", r'\bequity\b', r'\bpayables\b', r'capital'),
         filename_patterns=_compiled(r'balance.?sheet'),
-        min_matches=1,
+        min_matches=2,
     ),
     _Signature(
         document_type='profit_and_loss',
         header_patterns=_compiled(r'gross profit', r'net profit', r'cost of goods sold', r'\bcogs\b', r'operating expenses'),
         filename_patterns=_compiled(r'profit.?(and|&)?.?loss', r'\bp\s?&\s?l\b'),
+        min_matches=1,
+    ),
+    _Signature(
+        document_type='receivables',
+        header_patterns=_compiled(r'outstanding', r'overdue', r'days overdue', r'amount paid', r'\breceivable',
+                                  r'balance due', r'ageing', r'aging'),
+        filename_patterns=_compiled(r'receivable', r'outstanding', r'ageing', r'aging', r'debtor'),
         min_matches=1,
     ),
     _Signature(
@@ -77,8 +86,9 @@ _SIGNATURES: List[_Signature] = [
     ),
     _Signature(
         document_type='inventory',
-        header_patterns=_compiled(r'\bsku\b', r'reorder level', r'stock quantity', r'closing stock', r'godown',
-                                  r'item code', r'product code', r'\bstock\b', r'on hand', r'units in stock'),
+        header_patterns=_compiled(r'reorder level', r'reorder', r'stock quantity', r'closing stock', r'godown',
+                                  r'\bstock\b', r'on hand', r'units in stock', r'current stock', r'inventory value',
+                                  r'opening stock', r'stock in', r'stock out'),
         filename_patterns=_compiled(r'inventory', r'stock'),
         min_matches=1,
     ),
@@ -116,10 +126,25 @@ class FormatDetectorService:
         header_text = ' '.join(str(h) for h in table.headers)
         name = Path(filename).stem
 
+        # Statement-style files (P&L, balance sheet) carry their meaningful
+        # keywords in the FIRST COLUMN's row labels, not the header row. We
+        # fold those labels in ONLY for the statement signatures — folding
+        # them in for transactional types caused sales files (with SKU /
+        # Category values) to be misread as inventory.
+        label_text = ""
+        try:
+            first_col_values = [str(r[0]) for r in table.rows[:40] if r and r[0] is not None]
+            label_text = " ".join(first_col_values).lower()
+        except Exception:
+            label_text = ""
+
+        _LABEL_SCAN_TYPES = {"profit_and_loss", "balance_sheet"}
+
         for sig in _SIGNATURES:
             if sig.document_type in exclude_types:
                 continue
-            matched = [p.pattern for p in sig.header_patterns if p.search(header_text)]
+            scan_text = (header_text + " " + label_text) if sig.document_type in _LABEL_SCAN_TYPES else header_text
+            matched = [p.pattern for p in sig.header_patterns if p.search(scan_text)]
             matched += [p.pattern for p in sig.filename_patterns if p.search(name)]
 
             if len(matched) >= sig.min_matches:

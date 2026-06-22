@@ -105,7 +105,7 @@ class KPIService:
             return Decimal('0')
         return cogs / avg_inventory_value
 
-    def _get_growth_rate(self, company_id, start_date: date, end_date: date) -> Decimal:
+    def _get_growth_rate(self, company_id, start_date: date, end_date: date):
         period_days = (end_date - start_date).days + 1
         previous_start = start_date - timedelta(days=period_days)
         previous_end = end_date - timedelta(days=period_days)
@@ -113,8 +113,14 @@ class KPIService:
         current_revenue = self._get_revenue(company_id, start_date, end_date)
         previous_revenue = self._get_revenue(company_id, previous_start, previous_end)
 
+        # If there is genuinely no prior-period revenue to compare against,
+        # growth is UNKNOWN — returning a fabricated 100% misleads a first-time
+        # user with a single month of data. None signals "new / not enough
+        # history" so the UI can show that honestly instead of "+100%".
         if previous_revenue == 0:
-            return Decimal('100') if current_revenue > 0 else Decimal('0')
+            if current_revenue > 0:
+                return None
+            return Decimal('0')
 
         return (current_revenue - previous_revenue) / previous_revenue * Decimal('100')
 
@@ -127,6 +133,8 @@ class KPIService:
         period_end: date,
         payload: Optional[Dict[str, Any]] = None,
     ) -> Metric:
+        if value is None:
+            return None
         metric = (
             self.session.query(Metric)
             .filter(
@@ -155,7 +163,9 @@ class KPIService:
         self.session.commit()
         return metric
 
-    def _to_float(self, value: Decimal) -> float:
+    def _to_float(self, value) -> float:
+        if value is None:
+            return None
         return float(round(value, 4))
 
     def _get_collected(self, company_id, start_date, end_date) -> Decimal:
@@ -288,6 +298,30 @@ class KPIService:
             'period_end': end_date,
         }
 
+        # --- Balance-sheet override (authoritative when uploaded) ---
+        # A balance sheet is point-in-time truth for cash, working capital and
+        # liquidity. When one exists, its figures override the sales-derived
+        # approximations above, and we surface the dedicated balance-sheet
+        # KPIs (current/quick/debt ratio, net worth, liquidity & strength).
+        try:
+            from app.services.ingestion.balance_sheet_service import BalanceSheetService
+            bs = BalanceSheetService(self.session)
+            bs_kpis = bs.kpis(company_id)
+            if bs_kpis.get('available'):
+                if bs_kpis.get('cash_position') is not None:
+                    results['cash_position'] = bs_kpis['cash_position']
+                if bs_kpis.get('working_capital') is not None:
+                    results['working_capital'] = bs_kpis['working_capital']
+                results['current_ratio'] = bs_kpis.get('current_ratio')
+                results['quick_ratio'] = bs_kpis.get('quick_ratio')
+                results['debt_ratio'] = bs_kpis.get('debt_ratio')
+                results['liquidity_score'] = bs_kpis.get('liquidity_score')
+                results['financial_strength_score'] = bs_kpis.get('financial_strength_score')
+                results['net_worth'] = bs_kpis.get('net_worth')
+                results['balance_sheet_available'] = True
+        except Exception:
+            pass
+
         for metric_name, decimal_value in (
             ('revenue', revenue),
             ('gross_profit', gross_profit),
@@ -323,8 +357,12 @@ class KPIService:
         return self._normalize_value(result)
 
     def calculate_liquidity_ratios(self, company_id, as_of_date: Optional[date] = None) -> Dict[str, Any]:
-        statement_date = as_of_date or self._latest_balance_sheet_date(company_id)
-        if statement_date is None:
+        # Delegate to the dedicated balance-sheet pipeline so cash/receivables/
+        # payables that now land in granular categories are all counted.
+        from app.services.ingestion.balance_sheet_service import BalanceSheetService
+        bs = BalanceSheetService(self.session)
+        k = bs.kpis(company_id)
+        if not k.get('available'):
             return {
                 'available': False,
                 'reason': 'No balance sheet data uploaded yet.',
@@ -332,51 +370,35 @@ class KPIService:
                 'quick_ratio': None,
                 'statement_date': None,
             }
-
-        current_assets = self._balance_sheet_category_sum(company_id, statement_date, 'current_assets')
-        inventory_assets = self._balance_sheet_category_sum(company_id, statement_date, 'inventory_assets')
-        current_liabilities = self._balance_sheet_category_sum(company_id, statement_date, 'current_liabilities')
-
-        if current_liabilities == 0:
-            return {
-                'available': True,
-                'current_ratio': None,
-                'quick_ratio': None,
-                'statement_date': statement_date,
-                'note': 'No current liabilities recorded -- ratio is undefined, not zero.',
-            }
-
         return {
             'available': True,
-            'current_ratio': self._to_float((current_assets + inventory_assets) / current_liabilities),
-            'quick_ratio': self._to_float(current_assets / current_liabilities),
-            'statement_date': statement_date,
+            'current_ratio': k.get('current_ratio'),
+            'quick_ratio': k.get('quick_ratio'),
+            'statement_date': k.get('statement_date'),
         }
 
     def calculate_solvency_ratios(self, company_id, as_of_date: Optional[date] = None) -> Dict[str, Any]:
-        statement_date = as_of_date or self._latest_balance_sheet_date(company_id)
-        if statement_date is None:
+        from app.services.ingestion.balance_sheet_service import BalanceSheetService
+        bs = BalanceSheetService(self.session)
+        f = bs.figures(company_id)
+        if not f.get('available'):
             return {
                 'available': False,
                 'reason': 'No balance sheet data uploaded yet.',
                 'debt_to_equity': None,
                 'statement_date': None,
             }
-
-        long_term_liabilities = self._balance_sheet_category_sum(company_id, statement_date, 'long_term_liabilities')
-        current_liabilities = self._balance_sheet_category_sum(company_id, statement_date, 'current_liabilities')
-        equity = self._balance_sheet_category_sum(company_id, statement_date, 'equity')
-
+        equity = Decimal(str(f.get('equity') or 0))
+        total_liabilities = Decimal(str(f.get('total_liabilities') or 0))
         if equity == 0:
             return {
                 'available': True,
                 'debt_to_equity': None,
-                'statement_date': statement_date,
+                'statement_date': f.get('statement_date'),
                 'note': 'No equity recorded -- ratio is undefined, not zero.',
             }
-
         return {
             'available': True,
-            'debt_to_equity': self._to_float((long_term_liabilities + current_liabilities) / equity),
-            'statement_date': statement_date,
+            'debt_to_equity': self._to_float(total_liabilities / equity),
+            'statement_date': f.get('statement_date'),
         }

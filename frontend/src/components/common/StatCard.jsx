@@ -12,7 +12,7 @@ function fontSizeForLength(text) {
   return "text-lg";                     // crore+ with paise
 }
 
-function StatCard({ label, value, isCurrency = true, trend, accent, icon }) {
+function StatCard({ label, value, isCurrency = true, trend, accent, icon, showNewBadge = true }) {
   const display = isCurrency ? formatCurrency(value) : String(value);
   const sizeClass = fontSizeForLength(display);
 
@@ -36,10 +36,14 @@ function StatCard({ label, value, isCurrency = true, trend, accent, icon }) {
         {display}
       </p>
 
-      {trend != null && (
+      {trend != null ? (
         <p className={`mt-2 text-sm font-semibold ${trend >= 0 ? "text-risk-low" : "text-risk-high"}`}>
           {trend >= 0 ? "▲" : "▼"} {Math.abs(trend).toFixed(1)}% vs last period
         </p>
+      ) : (
+        showNewBadge && (
+          <p className="mt-2 text-sm font-medium text-ink-muted">New · needs 2+ periods to trend</p>
+        )
       )}
     </div>
   );

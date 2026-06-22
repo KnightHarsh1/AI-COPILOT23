@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Button from '../common/Button';
 import UploadDropzone from '../common/UploadDropzone';
 import MappingReviewTable from './MappingReviewTable';
+import { ProfilingPanel, AIUnderstandingPanel, ReadinessPanel } from './ImportInsightsPanels';
 import { ingestionService } from '../../services/ingestionService';
 import { formatNumber } from '../../utils/formatters';
 
@@ -263,6 +264,14 @@ function IngestionWizard({ onComplete }) {
         </div>
       )}
 
+      {/* AI file understanding + data profile (live from /analyze) */}
+      <AIUnderstandingPanel
+        documentType={analyzeResult?.document_type}
+        confidence={analyzeResult?.detection_confidence}
+        mapping={mapping}
+      />
+      <ProfilingPanel profiling={analyzeResult?.profiling} />
+
       {/* Mapping table */}
       <div>
         <div className="mb-3 flex items-baseline justify-between">
@@ -280,6 +289,9 @@ function IngestionWizard({ onComplete }) {
 
       {/* Data quality score */}
       {analyzeResult?.data_quality && <DataQualityPanel quality={analyzeResult.data_quality} />}
+
+      {/* Business analysis readiness (live) */}
+      <ReadinessPanel readiness={analyzeResult?.business_readiness} />
 
       {/* Missing required fields warning */}
       {missingRequired.length > 0 && (

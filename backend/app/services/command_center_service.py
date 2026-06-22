@@ -36,6 +36,22 @@ def _safe(fn, fallback):
         return fallback
 
 
+def _balance_sheet_section(session, company_id):
+    """Balance-sheet figures, KPIs and insights for the Command Center.
+    Returns None when no balance sheet has been uploaded so the UI can hide
+    the section rather than show empty values."""
+    from app.services.ingestion.balance_sheet_service import BalanceSheetService
+    bs = BalanceSheetService(session)
+    if not bs.has_balance_sheet(company_id):
+        return None
+    return {
+        'available': True,
+        'figures': bs.figures(company_id),
+        'kpis': bs.kpis(company_id),
+        'insights': bs.insights(company_id),
+    }
+
+
 class CommandCenterService:
     def __init__(self, session: Session):
         self.session = session
@@ -129,6 +145,11 @@ class CommandCenterService:
             health_section['outstanding_receivables'] = collections.get('outstanding_receivables', 0)
             health_section['cash_position'] = collections.get('total_collected', 0)
 
+        balance_sheet = _safe(
+            lambda: _balance_sheet_section(self.session, company_id),
+            None,
+        )
+
         return {
             'health': health_section,
             'action_center': action_center,
@@ -142,5 +163,6 @@ class CommandCenterService:
             'goals': goals,
             'benchmark': benchmark,
             'billing': billing,
+            'balance_sheet': balance_sheet,
             'generated_at': date.today().isoformat(),
         }

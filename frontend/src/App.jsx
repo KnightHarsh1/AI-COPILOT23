@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import ChatPage from './pages/ChatPage';
 import ForecastPage from './pages/ForecastPage';
 import IngestionPage from './pages/IngestionPage';
+import DataCenterPage from './pages/DataCenterPage';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
@@ -18,12 +19,14 @@ import { AppProvider } from './context/AppContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { AppearanceProvider } from './context/AppearanceContext';
+import { AccessProfileProvider } from './context/AccessProfileContext';
 
 function App() {
   return (
     <AuthProvider>
       <ThemeProvider>
       <AppearanceProvider>
+      <AccessProfileProvider>
       <AppProvider>
         <NotificationProvider>
           <Router>
@@ -34,6 +37,7 @@ function App() {
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
               <Route path="/app/dashboard" element={<ProtectedRoute><CommandCenterPage /></ProtectedRoute>} />
               <Route path="/app/dashboard-classic" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+              <Route path="/app/data-center" element={<ProtectedRoute><DataCenterPage /></ProtectedRoute>} />
               <Route path="/app/upload" element={<ProtectedRoute><UploadPage /></ProtectedRoute>} />
               <Route path="/app/ingestion" element={<ProtectedRoute><IngestionPage /></ProtectedRoute>} />
               <Route path="/app/reports" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
@@ -70,6 +74,7 @@ function App() {
           </Router>
         </NotificationProvider>
       </AppProvider>
+      </AccessProfileProvider>
       </AppearanceProvider>
       </ThemeProvider>
     </AuthProvider>

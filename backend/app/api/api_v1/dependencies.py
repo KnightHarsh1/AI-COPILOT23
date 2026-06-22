@@ -53,8 +53,28 @@ def require_role(minimum: str):
     The primary account user is always treated as owner. Endpoints that
     mutate data should depend on this so an invited 'read_only' member
     cannot write."""
-    def _guard(current_user: User = Depends(get_current_active_user)) -> User:
-        role = getattr(current_user, 'team_role', None) or 'owner'
+    def _guard(current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)) -> User:
+        role = getattr(current_user, 'team_role', None)
+
+        # Self-heal: the earliest-created user of a company is its owner. This
+        # covers accounts created before team_role existed (NULL) or rows that
+        # never got the default, so an owner is never locked out of their own
+        # company's owner-only actions.
+        if not role or role not in _ROLE_RANK:
+            role = 'owner'
+        if role != 'owner':
+            try:
+                earliest = (
+                    db.query(User)
+                    .filter(User.company_id == current_user.company_id)
+                    .order_by(User.created_at.asc())
+                    .first()
+                )
+                if earliest and earliest.id == current_user.id:
+                    role = 'owner'
+            except Exception:
+                pass
+
         if _ROLE_RANK.get(role, 3) < _ROLE_RANK.get(minimum, 0):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

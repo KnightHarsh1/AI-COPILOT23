@@ -35,6 +35,18 @@ export const ingestionService = {
     const response = await api.get('/ingestion/history');
     return response.data;
   },
+  fieldRegistry: async () => {
+    const response = await api.get('/ingestion/field-registry');
+    return response.data;
+  },
+  deleteImport: async (batchId) => {
+    const response = await api.delete(`/ingestion/imports/${batchId}`);
+    return response.data;
+  },
+  recalculate: async () => {
+    const response = await api.post('/ingestion/recalculate');
+    return response.data;
+  },
 
   deleteMappingTemplate: async (templateId) => {
     const response = await api.delete(`/ingestion/mapping-templates/${templateId}`);

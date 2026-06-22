@@ -33,6 +33,8 @@ class AnalyzeResponse(BaseModel):
     matched_template_id: Optional[UUID] = None
     duplicate_file_warning: Optional[str] = None
     data_quality: Optional[dict] = None
+    profiling: Optional[dict] = None
+    business_readiness: Optional[dict] = None
 
     model_config = ConfigDict(from_attributes=True)
 

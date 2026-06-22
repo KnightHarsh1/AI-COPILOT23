@@ -28,6 +28,59 @@ from app.services.ingestion.parsers import ParseError
 router = APIRouter()
 
 
+@router.delete('/imports/{batch_id}', status_code=status.HTTP_200_OK)
+def delete_import(
+    batch_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role('owner')),
+):
+    """Delete an import and every record it created, then recalculate the
+    whole Command Center. No orphaned data remains. Owner-only — deleting
+    imported data is destructive and recalculates everything."""
+    from app.services.ingestion.import_management_service import ImportManagementService
+    result = ImportManagementService(db).delete_import(current_user.company_id, batch_id)
+    if not result.get('deleted'):
+        raise HTTPException(status_code=404, detail="Import not found.")
+    return result
+
+
+@router.post('/recalculate', status_code=status.HTTP_200_OK)
+def recalculate(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role('manager')),
+):
+    """Force a full refresh of KPIs, health score, alerts and recommendations
+    from current data."""
+    from app.services.ingestion.import_management_service import ImportManagementService
+    return ImportManagementService(db).recalculate(current_user.company_id)
+
+
+@router.get('/field-registry')
+def field_registry(current_user: User = Depends(get_current_active_user)):
+    """The master list of business fields a column can map to, grouped by
+    category. Powers the mapping assistant's 'search all fields' and manual
+    override. Built from the canonical dictionary so it can never drift from
+    what the matcher actually understands."""
+    from app.services.ingestion import canonical_field_dictionary as cfd
+
+    def pack(specs):
+        return [{"field": s.name, "label": _humanize(s.name), "description": s.description,
+                 "required": s.required, "synonyms": s.synonyms} for s in specs]
+
+    groups = {
+        "Sales": pack(cfd.SALES_FIELDS),
+        "Expenses": pack(cfd.EXPENSE_FIELDS),
+        "Customers": pack(cfd.CUSTOMER_FIELDS),
+        "Inventory": pack(cfd.INVENTORY_FIELDS),
+        "Bank / statement": pack(cfd.BANK_TRANSACTION_FIELDS) + pack(cfd.STATEMENT_LINE_FIELDS),
+    }
+    return {"groups": groups}
+
+
+def _humanize(name: str) -> str:
+    return name.replace('_', ' ').strip().title()
+
+
 @router.get('/history')
 def import_history(db: Session = Depends(get_db), current_user: User = Depends(get_current_active_user)):
     """Recent imports for this company: what was imported, when, type, and

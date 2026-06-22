@@ -27,12 +27,15 @@ from app.services.ingestion.validation_service import coerce_amount, coerce_date
 # controlled line_category vocabulary. Checked in order -- first match
 # wins -- so more specific terms should come before more generic ones.
 _BALANCE_SHEET_RULES = [
-    ('inventory_assets', ['stock in hand', 'closing stock', 'inventory']),
-    ('current_assets', ['sundry debtor', 'receivable', 'cash', 'bank balance', 'current asset']),
-    ('fixed_assets', ['fixed asset', 'machinery', 'building', 'furniture', 'vehicle', 'land', 'plant']),
-    ('current_liabilities', ['sundry creditor', 'payable', 'outstanding expense', 'current liabilit', 'provision']),
-    ('long_term_liabilities', ['long term loan', 'term loan', 'borrowing', 'debenture', 'long-term']),
-    ('equity', ['share capital', 'reserve', 'surplus', 'capital account', 'equity']),
+    ('cash_and_bank', ['cash & bank', 'cash and bank', 'cash in hand', 'cash balance', 'bank balance', 'cash at bank', 'petty cash']),
+    ('receivables', ['sundry debtor', 'receivable', 'trade debtor', 'accounts receivable', 'debtors']),
+    ('inventory_assets', ['stock in hand', 'closing stock', 'inventory', 'stock']),
+    ('current_assets', ['cash', 'bank', 'current asset', 'prepaid', 'advance', 'short term investment']),
+    ('fixed_assets', ['fixed asset', 'machinery', 'building', 'furniture', 'vehicle', 'land', 'plant', 'equipment']),
+    ('payables', ['sundry creditor', 'payable', 'accounts payable', 'trade creditor', 'creditors']),
+    ('current_liabilities', ['outstanding expense', 'current liabilit', 'provision', 'short term loan', 'short-term loan']),
+    ('long_term_liabilities', ['long term loan', 'long-term loan', 'term loan', 'borrowing', 'debenture', 'long-term', 'mortgage']),
+    ('equity', ['share capital', 'reserve', 'surplus', 'capital account', 'equity', "owner's equity", 'owners equity', 'capital']),
 ]
 _PROFIT_AND_LOSS_RULES = [
     ('revenue', ['sales', 'revenue', 'income from operations', 'gross revenue']),

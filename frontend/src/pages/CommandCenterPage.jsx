@@ -24,6 +24,7 @@ import AskBox from "../components/command/AskBox";
 import ScoreChangeCard from "../components/command/ScoreChangeCard";
 import GoalsBenchmark from "../components/command/GoalsBenchmark";
 import CashKpiStrip from "../components/command/CashKpiStrip";
+import BalanceSheetCard from "../components/command/BalanceSheetCard";
 import ExpenseChart from "../components/common/charts/ExpenseChart";
 import HealthScoreChart from "../components/common/charts/HealthScoreChart";
 
@@ -154,6 +155,9 @@ function CommandCenterPage() {
 
                   {/* Cash position in plain language with verdicts */}
                   <CashKpiStrip health={data.health} />
+
+                  {/* Financial position from an uploaded balance sheet */}
+                  <BalanceSheetCard balanceSheet={data.balance_sheet} />
 
                   {/* What changed + freshness nudge. Each may be empty; they
                       stack cleanly without leaving a lopsided grid cell. */}

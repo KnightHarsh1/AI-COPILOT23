@@ -33,6 +33,8 @@ class UserRead(UserBase):
     is_active: bool
     is_superuser: bool
     theme: str = 'system'
+    team_role: str = 'owner'
+    phone: Optional[str] = None
     appearance_preferences: Optional[dict] = None
     email_alerts_enabled: bool = True
     risk_alerts_enabled: bool = True

@@ -6,8 +6,7 @@
 // /app/dashboard-classic for anyone who wants it.
 export const navItems = [
   { label: 'Command Center', path: '/app/dashboard' },
-  { label: 'Upload', path: '/app/upload' },
-  { label: 'Import', path: '/app/ingestion' },
+  { label: 'Data Center', path: '/app/data-center' },
   { label: 'Reports', path: '/app/reports' },
   { label: 'AI CFO', path: '/app/chat' },
   { label: 'Settings', path: '/app/settings' },
