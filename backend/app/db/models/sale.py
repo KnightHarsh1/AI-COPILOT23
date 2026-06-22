@@ -11,6 +11,7 @@ class Sale(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     company_id = Column(UUID(as_uuid=True), ForeignKey('companies.id', ondelete='CASCADE'), nullable=False, index=True)
     customer_id = Column(UUID(as_uuid=True), ForeignKey('customers.id', ondelete='SET NULL'), nullable=True, index=True)
+    customer_name = Column(String(256), nullable=True, index=True)
     source_file_id = Column(UUID(as_uuid=True), ForeignKey('files.id', ondelete='SET NULL'), nullable=True, index=True)
     invoice_number = Column(String(64), nullable=True, unique=True)
     invoice_date = Column(Date, nullable=False)

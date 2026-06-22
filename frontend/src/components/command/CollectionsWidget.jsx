@@ -76,6 +76,14 @@ function CollectionsWidget({ data }) {
             </div>
           </div>
 
+          {data.collection_forecast && data.collection_forecast.expected_30d > 0 && (
+            <div className="rounded-xl border border-risk-low/30 bg-risk-low/5 p-4">
+              <p className="text-sm font-semibold text-ink">Collection forecast (30 days)</p>
+              <p className="figure mt-1 text-lg font-bold text-risk-low">{formatCurrency(data.collection_forecast.expected_30d)}</p>
+              <p className="mt-1 text-xs text-ink-muted">Likely to be collected, based on invoice age and your collection rate.</p>
+            </div>
+          )}
+
           {data.top_customer_name && (
             <div className="rounded-xl border border-border bg-bg-subtle p-4">
               <p className="text-sm font-semibold text-ink">Customer dependency</p>

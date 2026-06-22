@@ -33,9 +33,63 @@ app.add_middleware(
 )
 
 
+def _ensure_missing_columns():
+    """Lightweight schema self-heal: for every mapped table, add any column
+    that exists on the model but is missing from the database. This covers the
+    common case where a new column was added in code but the matching Alembic
+    migration hasn't been run yet (e.g. SQLite dev databases), which otherwise
+    makes every query on that table fail with 'no such column'.
+
+    Only ADDs nullable columns — never drops or alters — so it is safe. Real
+    schema changes still belong in migrations; this is a guard rail."""
+    import logging
+    from sqlalchemy import inspect as sa_inspect, text
+
+    log = logging.getLogger('startup')
+    try:
+        inspector = sa_inspect(engine)
+    except Exception:
+        return
+
+    # Map SQLAlchemy column types to SQL type strings that work on SQLite +
+    # Postgres for the simple types we add.
+    def _sql_type(col):
+        try:
+            return col.type.compile(dialect=engine.dialect)
+        except Exception:
+            return 'VARCHAR'
+
+    for table in Base.metadata.sorted_tables:
+        try:
+            existing = {c['name'] for c in inspector.get_columns(table.name)}
+        except Exception:
+            continue
+        if not existing:
+            continue  # table doesn't exist yet; create_all handles it
+        for col in table.columns:
+            if col.name in existing:
+                continue
+            # Only auto-add nullable columns (or those with a default); adding a
+            # NOT NULL column without a default to a populated table would fail.
+            if not col.nullable and col.default is None and col.server_default is None:
+                log.warning(
+                    "Column %s.%s is missing and NOT NULL — run migrations to add it.",
+                    table.name, col.name,
+                )
+                continue
+            ddl = f'ALTER TABLE {table.name} ADD COLUMN {col.name} {_sql_type(col)}'
+            try:
+                with engine.begin() as conn:
+                    conn.execute(text(ddl))
+                log.warning("Auto-added missing column %s.%s", table.name, col.name)
+            except Exception as exc:
+                log.warning("Could not auto-add %s.%s: %s", table.name, col.name, exc)
+
+
 @app.on_event("startup")
 def on_startup():
     Base.metadata.create_all(bind=engine)
+    _ensure_missing_columns()
     # Surface optional import dependencies early so missing libs show up in
     # server logs, not as a confused user mid-upload.
     import logging

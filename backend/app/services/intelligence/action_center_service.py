@@ -55,6 +55,8 @@ class ActionCenterService:
         actions.extend(self._from_balance_sheet(company_id))
         actions.extend(self._from_cash_flow(company_id))
         actions.extend(self._from_expenses(company_id))
+        actions.extend(self._from_customers(company_id))
+        actions.extend(self._from_opportunities(company_id))
 
         actions.sort(key=lambda a: _PRIORITY_RANK.get(a['priority'], 1))
 
@@ -303,4 +305,22 @@ class ActionCenterService:
                 'month',
             ))
         return out
+
+    def _from_customers(self, company_id):
+        """Customer-related actions (overdue follow-ups, declining, growing,
+        dependency) from the Customer Intelligence engine."""
+        from app.services.intelligence.customer_intelligence_service import CustomerIntelligenceService
+        try:
+            return CustomerIntelligenceService(self.session).actions(company_id)
+        except Exception:
+            return []
+
+    def _from_opportunities(self, company_id):
+        """Opportunity actions (expand growing customers, liquidate dead stock,
+        recover receivables, optimise costs) from Opportunity Intelligence."""
+        from app.services.intelligence.opportunity_intelligence_service import OpportunityIntelligenceService
+        try:
+            return OpportunityIntelligenceService(self.session).actions(company_id)
+        except Exception:
+            return []
 

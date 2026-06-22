@@ -124,6 +124,24 @@ class NormalizationService:
 
     # -- Sales -----------------------------------------------------------
 
+    def _sale_has_customer_name(self) -> bool:
+        """Whether the live `sales` table actually has the customer_name column.
+        Cached per-instance. Lets sales imports succeed even if migration 0014
+        hasn't been applied yet (degrades gracefully — customer name is simply
+        not stored until the migration runs)."""
+        cached = getattr(self, '_sale_customer_name_ok', None)
+        if cached is not None:
+            return cached
+        ok = False
+        try:
+            from sqlalchemy import inspect as _sa_inspect
+            cols = {c['name'] for c in _sa_inspect(self.session.get_bind()).get_columns('sales')}
+            ok = 'customer_name' in cols
+        except Exception:
+            ok = False
+        self._sale_customer_name_ok = ok
+        return ok
+
     def _commit_sales(self, rows: List[StagingRow], result: IngestionCommitResult) -> None:
         seen_invoice_numbers = set()
         for row in rows:
@@ -202,7 +220,7 @@ class NormalizationService:
                     else:
                         seen_invoice_numbers.add(invoice_number)
 
-            self.session.add(Sale(
+            sale = Sale(
                 company_id=row.batch.company_id,
                 invoice_date=invoice_date,
                 amount=amount,
@@ -214,7 +232,14 @@ class NormalizationService:
                 payment_status=payment_status,
                 amount_paid=paid,
                 is_credit_sale=is_credit_sale,
-            ))
+            )
+            # Set customer_name only if the DB actually has that column. This
+            # keeps imports working whether or not migration 0014 has been run
+            # (an un-migrated DB would otherwise reject the INSERT and fail the
+            # whole import).
+            if self._sale_has_customer_name() and data.get('customer_name'):
+                sale.customer_name = str(data.get('customer_name')).strip()[:256]
+            self.session.add(sale)
             result.sales_added += 1
 
     # -- Expenses --------------------------------------------------------

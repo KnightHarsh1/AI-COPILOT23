@@ -26,6 +26,8 @@ import GoalsBenchmark from "../components/command/GoalsBenchmark";
 import CashKpiStrip from "../components/command/CashKpiStrip";
 import BalanceSheetCard from "../components/command/BalanceSheetCard";
 import CashFlowCard from "../components/command/CashFlowCard";
+import CustomerIntelligenceCard from "../components/command/CustomerIntelligenceCard";
+import OpportunityCard from "../components/command/OpportunityCard";
 import ExpenseChart from "../components/common/charts/ExpenseChart";
 import HealthScoreChart from "../components/common/charts/HealthScoreChart";
 
@@ -180,6 +182,12 @@ function CommandCenterPage() {
 
               {tab === "intelligence" && (
                 <div className="space-y-6">
+                  {/* Customer Intelligence — core module, full width */}
+                  <CustomerIntelligenceCard customers={data.customers} />
+
+                  {/* Opportunity Intelligence — cross-engine, full width */}
+                  <OpportunityCard opportunities={data.opportunities} />
+
                   <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
                     <CollectionsWidget data={data.collections} />
                     <ProductWidget data={data.product} />

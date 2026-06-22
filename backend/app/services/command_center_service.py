@@ -68,6 +68,24 @@ def _cash_flow_section(session, company_id):
     }
 
 
+def _customer_section(session, company_id):
+    """Customer Intelligence from sales data carrying customer names. None when
+    no customer-attributed sales exist so the UI hides the section."""
+    from app.services.intelligence.customer_intelligence_service import CustomerIntelligenceService
+    ci = CustomerIntelligenceService(session)
+    if not ci.has_customer_data(company_id):
+        return None
+    return ci.analyze(company_id)
+
+
+def _opportunity_section(session, company_id):
+    """Opportunity Intelligence aggregated across all engines. None when no
+    opportunities can be derived so the UI hides the section."""
+    from app.services.intelligence.opportunity_intelligence_service import OpportunityIntelligenceService
+    data = OpportunityIntelligenceService(session).analyze(company_id)
+    return data if data.get('available') else None
+
+
 class CommandCenterService:
     def __init__(self, session: Session):
         self.session = session
@@ -171,6 +189,16 @@ class CommandCenterService:
             None,
         )
 
+        customers = _safe(
+            lambda: _customer_section(self.session, company_id),
+            None,
+        )
+
+        opportunities = _safe(
+            lambda: _opportunity_section(self.session, company_id),
+            None,
+        )
+
         return {
             'health': health_section,
             'action_center': action_center,
@@ -186,5 +214,7 @@ class CommandCenterService:
             'billing': billing,
             'balance_sheet': balance_sheet,
             'cash_flow': cash_flow,
+            'customers': customers,
+            'opportunities': opportunities,
             'generated_at': date.today().isoformat(),
         }

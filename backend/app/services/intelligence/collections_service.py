@@ -119,6 +119,22 @@ class CollectionsIntelligenceService:
             score -= (top_customer_share - 40) * 0.5
         score = max(0.0, min(100.0, round(score, 1)))
 
+        # Collection forecast: estimate how much of the outstanding is likely
+        # to be collected in the next 30 days, weighting each aging bucket by a
+        # realistic recovery likelihood (recent invoices collect far more
+        # reliably than 90+ day-old ones), scaled by historical efficiency.
+        eff_factor = (collection_efficiency / 100.0) if collection_efficiency else 0.7
+        recovery_weights = {
+            'current': 0.85, 'd1_30': 0.75, 'd31_60': 0.55, 'd61_90': 0.35, 'd90_plus': 0.15,
+        }
+        forecast_30d = 0.0
+        for bucket, weight in recovery_weights.items():
+            forecast_30d += buckets[bucket] * weight * eff_factor
+        collection_forecast = {
+            'expected_30d': round(forecast_30d, 2),
+            'basis': 'Aging buckets weighted by recovery likelihood and your collection efficiency.',
+        }
+
         return {
             'available': True,
             'cash_sales': round(cash_sales, 2),
@@ -132,5 +148,6 @@ class CollectionsIntelligenceService:
             'top_customer_name': top_customer_name,
             'top_customer_share': top_customer_share,
             'credit_health_score': score,
+            'collection_forecast': collection_forecast,
             'sales_missing_payment_data': unknown_count,
         }
