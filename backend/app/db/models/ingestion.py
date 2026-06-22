@@ -41,6 +41,11 @@ class IngestionBatch(Base):
     confirmed_at = Column(DateTime(timezone=True), nullable=True)
     committed_at = Column(DateTime(timezone=True), nullable=True)
 
+    # The measured business impact of this import (KPI deltas, health change,
+    # new alerts/actions/opportunities), captured at confirm time so the
+    # Import Impact Report can be shown immediately and re-viewed from history.
+    impact_report = Column(JSONB, nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 

@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import Navbar from "../components/common/Navbar";
 import Sidebar from "../components/common/Sidebar";
 import IngestionWizard from "../components/ingestion/IngestionWizard";
+import ImportImpactReport from "../components/ingestion/ImportImpactReport";
 import GrowthService from "../services/growthService";
 import { ingestionService } from "../services/ingestionService";
 import { useAccessProfile } from "../context/AccessProfileContext";
@@ -192,6 +193,7 @@ function HistoryTab() {
   const [loaded, setLoaded] = useState(false);
   const [busyId, setBusyId] = useState(null);
   const [notice, setNotice] = useState(null);
+  const [expandedId, setExpandedId] = useState(null);
 
   const load = useCallback(() => {
     ingestionService.importHistory().then((d) => { setImports(d.imports || []); setLoaded(true); }).catch(() => setLoaded(true));
@@ -251,29 +253,49 @@ function HistoryTab() {
               <th className="px-4 py-3 text-left font-semibold text-ink">Sheet</th>
               <th className="px-4 py-3 text-left font-semibold text-ink">Status</th>
               <th className="px-4 py-3 text-left font-semibold text-ink">When</th>
-              {canDelete && <th className="px-4 py-3 text-right font-semibold text-ink">Action</th>}
+              {<th className="px-4 py-3 text-right font-semibold text-ink">Action</th>}
             </tr>
           </thead>
           <tbody>
             {imports.map((b) => (
-              <tr key={b.id} className="border-t border-border">
+              <Fragment key={b.id}>
+              <tr className="border-t border-border">
                 <td className="px-4 py-3 text-ink">{b.document_type}</td>
                 <td className="px-4 py-3 text-ink-muted">{b.sheet_name || "—"}</td>
                 <td className="px-4 py-3"><span className={`rounded-pill px-2 py-0.5 text-xs font-semibold ${statusStyle(b.status)}`}>{b.status}</span></td>
                 <td className="px-4 py-3 text-ink-muted">{b.created_at ? formatDate(b.created_at) : "—"}</td>
-                {canDelete && (
                 <td className="px-4 py-3 text-right">
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(b.id)}
-                    disabled={busyId === b.id}
-                    className="rounded-pill border border-risk-high/30 px-3 py-1 text-xs font-semibold text-risk-high transition hover:bg-risk-high/10 disabled:opacity-50"
-                  >
-                    {busyId === b.id ? "Deleting…" : "Delete"}
-                  </button>
+                  <div className="flex items-center justify-end gap-2">
+                    {b.impact_report && (
+                      <button
+                        type="button"
+                        onClick={() => setExpandedId(expandedId === b.id ? null : b.id)}
+                        className="rounded-pill border border-primary/30 px-3 py-1 text-xs font-semibold text-primary transition hover:bg-primary/10"
+                      >
+                        {expandedId === b.id ? "Hide impact" : "View impact"}
+                      </button>
+                    )}
+                    {canDelete && (
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(b.id)}
+                        disabled={busyId === b.id}
+                        className="rounded-pill border border-risk-high/30 px-3 py-1 text-xs font-semibold text-risk-high transition hover:bg-risk-high/10 disabled:opacity-50"
+                      >
+                        {busyId === b.id ? "Deleting…" : "Delete"}
+                      </button>
+                    )}
+                  </div>
                 </td>
-                )}
               </tr>
+              {expandedId === b.id && b.impact_report && (
+                <tr className="border-t border-border bg-bg-subtle/30">
+                  <td colSpan={5} className="px-4 py-4">
+                    <ImportImpactReport impact={b.impact_report} />
+                  </td>
+                </tr>
+              )}
+              </Fragment>
             ))}
           </tbody>
         </table>

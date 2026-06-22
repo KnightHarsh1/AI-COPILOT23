@@ -279,6 +279,15 @@ class IngestionOrchestratorService:
         # confirm click is reflected, then commit from that final state.
         self.staging.update_row_mapping(batch, final_mapping)
 
+        # Snapshot the business state BEFORE committing, so we can report the
+        # exact impact of this import once it lands.
+        from app.services.ingestion.import_impact_service import ImportImpactService
+        impact_service = ImportImpactService(self.session)
+        try:
+            before_snapshot = impact_service.snapshot(batch.company_id)
+        except Exception:
+            before_snapshot = None
+
         result = self.normalizer.commit_batch(
             batch,
             statement_date=statement_date,
@@ -331,6 +340,22 @@ class IngestionOrchestratorService:
             AuditService(self.session).log(batch.company_id, 'import',
                                            f'Imported {batch.document_type} data', user_id=current_user.id)
             NotificationDispatcher(self.session).run_daily_checks(batch.company_id)
+        except Exception:
+            pass
+
+        # Capture the AFTER state and compute the impact report. Stored on the
+        # batch (for History → View Impact) and attached to the result so the
+        # wizard can show it immediately.
+        try:
+            after_snapshot = impact_service.snapshot(batch.company_id)
+            if before_snapshot is not None:
+                impact = impact_service.diff(
+                    before_snapshot, after_snapshot,
+                    document_type=batch.document_type, result=result,
+                )
+                batch.impact_report = impact
+                self.session.commit()
+                result.impact_report = impact
         except Exception:
             pass
 

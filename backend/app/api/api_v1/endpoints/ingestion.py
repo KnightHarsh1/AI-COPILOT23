@@ -100,6 +100,7 @@ def import_history(db: Session = Depends(get_db), current_user: User = Depends(g
         'confidence': float(b.detection_confidence or 0),
         'created_at': b.created_at.isoformat() if b.created_at else None,
         'committed_at': b.committed_at.isoformat() if b.committed_at else None,
+        'impact_report': b.impact_report,
     } for b in rows]}
 
 # Superset of upload.py's allowed extensions -- .xml is needed for

@@ -3,6 +3,7 @@ import Button from '../common/Button';
 import UploadDropzone from '../common/UploadDropzone';
 import MappingReviewTable from './MappingReviewTable';
 import { ProfilingPanel, AIUnderstandingPanel, ReadinessPanel } from './ImportInsightsPanels';
+import ImportImpactReport from './ImportImpactReport';
 import { ingestionService } from '../../services/ingestionService';
 import { formatNumber } from '../../utils/formatters';
 
@@ -203,6 +204,7 @@ function IngestionWizard({ onComplete }) {
             This file&rsquo;s records were already imported — any duplicates were skipped automatically.
           </p>
         )}
+        <ImportImpactReport impact={commitResult?.impact_report} />
         <div className="flex gap-3">
           <Button onClick={handleReset}>Import another file</Button>
         </div>

@@ -83,6 +83,7 @@ class IngestionCommitResult(BaseModel):
     rows_skipped_invalid: int = 0
     message: str = 'Import completed'
     is_duplicate: bool = False
+    impact_report: Optional[dict] = None
 
 
 class BatchStatusResponse(BaseModel):
