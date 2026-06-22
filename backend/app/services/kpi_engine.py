@@ -322,6 +322,22 @@ class KPIService:
         except Exception:
             pass
 
+        # --- Bank statement cash position (when no balance sheet override) ---
+        # A bank statement's latest balance is authoritative for cash on hand.
+        # If a balance sheet already set cash_position above, that wins; else
+        # the bank balance makes an uploaded bank statement move the dashboard.
+        try:
+            if not results.get('balance_sheet_available'):
+                from app.services.cash_flow_service import CashFlowService
+                cf = CashFlowService(self.session)
+                cf_kpis = cf.kpis(company_id)
+                if cf_kpis.get('available') and cf_kpis.get('cash_position') is not None:
+                    results['cash_position'] = cf_kpis['cash_position']
+                    results['net_cash_flow'] = cf_kpis.get('net_cash_flow')
+                    results['cash_flow_available'] = True
+        except Exception:
+            pass
+
         for metric_name, decimal_value in (
             ('revenue', revenue),
             ('gross_profit', gross_profit),

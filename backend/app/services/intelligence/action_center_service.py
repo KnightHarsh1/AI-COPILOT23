@@ -52,6 +52,9 @@ class ActionCenterService:
         actions.extend(self._from_collections(company_id))
         actions.extend(self._from_compliance(company_id))
         actions.extend(self._from_products(company_id))
+        actions.extend(self._from_balance_sheet(company_id))
+        actions.extend(self._from_cash_flow(company_id))
+        actions.extend(self._from_expenses(company_id))
 
         actions.sort(key=lambda a: _PRIORITY_RANK.get(a['priority'], 1))
 
@@ -200,3 +203,104 @@ class ActionCenterService:
                 'month',
             ))
         return out
+
+    def _from_balance_sheet(self, company_id):
+        """Liquidity, working-capital and debt actions from an uploaded
+        balance sheet."""
+        from app.services.ingestion.balance_sheet_service import BalanceSheetService
+        k = BalanceSheetService(self.session).kpis(company_id)
+        if not k.get('available'):
+            return []
+        out = []
+        cr = k.get('current_ratio')
+        wc = k.get('working_capital')
+        dr = k.get('debt_ratio')
+
+        if cr is not None and cr < 1:
+            out.append(_action(
+                'liquidity_risk', 'high',
+                'Liquidity is tight — current ratio below 1',
+                f'Current assets cover only {cr:.2f}x of current liabilities.',
+                'Reduces the risk of missing short-term payments.',
+                'Speed up collections or arrange a short-term credit line.',
+                'today',
+            ))
+        if wc is not None and wc < 0:
+            out.append(_action(
+                'working_capital', 'high',
+                'Negative working capital',
+                f'Working capital is ₹{wc:,.0f} — short-term liabilities exceed short-term assets.',
+                'Protects day-to-day operations from a cash crunch.',
+                'Prioritise receivable collection and defer non-essential payments.',
+                'week',
+            ))
+        if dr is not None and dr > 0.6:
+            out.append(_action(
+                'debt_risk', 'medium',
+                f'High leverage — {dr*100:.0f}% of assets are debt-financed',
+                'A high debt ratio increases financial risk if income dips.',
+                'Improves financial stability and borrowing capacity.',
+                'Avoid new debt; build a plan to pay down existing loans.',
+                'month',
+            ))
+        return out
+
+    def _from_cash_flow(self, company_id):
+        """Cash-flow and cash-position actions from an uploaded bank statement."""
+        from app.services.cash_flow_service import CashFlowService
+        cf = CashFlowService(self.session)
+        s = cf.summary(company_id)
+        if not s.get('available'):
+            return []
+        out = []
+        net = s.get('net_cash_flow')
+        if net is not None and net < 0:
+            out.append(_action(
+                'cash_flow_risk', 'high',
+                'Negative cash flow this period',
+                f'Outflows exceeded inflows by ₹{abs(net):,.0f}.',
+                'Protects your cash runway.',
+                'Review the largest outflows and delay non-critical spending.',
+                'today',
+            ))
+        if s.get('cash_position') is not None and s['cash_position'] < 0:
+            out.append(_action(
+                'cash_flow_risk', 'high',
+                'Bank balance is negative',
+                f'Latest balance is approximately ₹{s["cash_position"]:,.0f}.',
+                'Avoids overdraft charges and bounced payments.',
+                'Move funds in or pause outgoing payments until balance recovers.',
+                'today',
+            ))
+        return out
+
+    def _from_expenses(self, company_id):
+        """Profitability / cost actions from sales + expense KPIs."""
+        from app.services.kpi_engine import KPIService
+        try:
+            kpis = KPIService(self.session).calculate_kpis(company_id)
+        except Exception:
+            return []
+        out = []
+        net_profit = kpis.get('net_profit')
+        margin = kpis.get('profit_margin')
+        if net_profit is not None and net_profit < 0:
+            out.append(_action(
+                'profitability', 'high',
+                'Operating at a loss this period',
+                f'Net profit is ₹{net_profit:,.0f} — expenses are higher than revenue.',
+                'Returns the business to profitability.',
+                'Review your biggest expense categories for cuts.',
+                'week',
+            ))
+        elif margin is not None and margin < 5 and net_profit is not None:
+            out.append(_action(
+                'profitability', 'medium',
+                f'Thin profit margin ({margin:.1f}%)',
+                'A low margin leaves little buffer for cost increases.',
+                'Improves resilience to price and cost changes.',
+                'Look for pricing or cost-control opportunities.',
+                'month',
+            ))
+        return out
+

@@ -12,7 +12,7 @@ from app.db.models.ingestion import IngestionBatch, StagingRow
 from app.db.models.sale import Sale
 from app.db.models.expense import Expense
 from app.db.models.bank_transaction import BankTransaction
-from app.db.models.financial_statement import FinancialStatement
+from app.db.models.financial_statement import FinancialStatementLine
 
 
 class ImportManagementService:
@@ -53,8 +53,8 @@ class ImportManagementService:
                 .delete(synchronize_session=False)
             )
             removed["statements"] = (
-                self.session.query(FinancialStatement)
-                .filter(FinancialStatement.company_id == company_id, FinancialStatement.source_file_id == file_id)
+                self.session.query(FinancialStatementLine)
+                .filter(FinancialStatementLine.company_id == company_id, FinancialStatementLine.source_file_id == file_id)
                 .delete(synchronize_session=False)
             )
 

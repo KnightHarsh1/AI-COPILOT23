@@ -206,8 +206,21 @@ function HistoryTab() {
       await ingestionService.deleteImport(id);
       setNotice({ type: "success", text: "Import deleted. KPIs, health score and insights have been recalculated." });
       load();
-    } catch (_) {
-      setNotice({ type: "error", text: "Could not delete this import. Only the account owner can delete imported data." });
+    } catch (err) {
+      const statusCode = err?.response?.status;
+      const detail = err?.response?.data?.detail;
+      let text;
+      if (statusCode === 403) {
+        text = "Only the account owner can delete imported data.";
+      } else if (statusCode === 404) {
+        text = "This import no longer exists. Refreshing the list.";
+        load();
+      } else if (detail) {
+        text = `Could not delete this import: ${detail}`;
+      } else {
+        text = "Could not delete this import. Please try again, or restart the app if it persists.";
+      }
+      setNotice({ type: "error", text });
     } finally {
       setBusyId(null);
     }

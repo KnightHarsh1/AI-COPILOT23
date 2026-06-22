@@ -56,21 +56,25 @@ def require_role(minimum: str):
     def _guard(current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)) -> User:
         role = getattr(current_user, 'team_role', None)
 
-        # Self-heal: the earliest-created user of a company is its owner. This
-        # covers accounts created before team_role existed (NULL) or rows that
-        # never got the default, so an owner is never locked out of their own
-        # company's owner-only actions.
+        # Self-heal owner detection so an account owner is never locked out of
+        # their own company's owner-only actions. An owner is recognised when:
+        #   - team_role is already 'owner', OR
+        #   - team_role is missing/invalid (legacy rows, pre-migration NULLs), OR
+        #   - they are the only user in the company, OR
+        #   - they are the earliest-created user in the company.
         if not role or role not in _ROLE_RANK:
             role = 'owner'
         if role != 'owner':
             try:
-                earliest = (
+                company_users = (
                     db.query(User)
                     .filter(User.company_id == current_user.company_id)
                     .order_by(User.created_at.asc())
-                    .first()
+                    .all()
                 )
-                if earliest and earliest.id == current_user.id:
+                if len(company_users) <= 1:
+                    role = 'owner'
+                elif company_users and company_users[0].id == current_user.id:
                     role = 'owner'
             except Exception:
                 pass

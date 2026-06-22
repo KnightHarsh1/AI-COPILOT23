@@ -52,6 +52,22 @@ def _balance_sheet_section(session, company_id):
     }
 
 
+def _cash_flow_section(session, company_id):
+    """Cash-flow intelligence from imported bank statements. None when no bank
+    data exists so the UI hides the section."""
+    from app.services.cash_flow_service import CashFlowService
+    cf = CashFlowService(session)
+    if not cf.has_bank_data(company_id):
+        return None
+    return {
+        'available': True,
+        'summary': cf.summary(company_id),
+        'trend': cf.monthly_trend(company_id),
+        'spending': cf.spending_breakdown(company_id),
+        'insights': cf.insights(company_id),
+    }
+
+
 class CommandCenterService:
     def __init__(self, session: Session):
         self.session = session
@@ -150,6 +166,11 @@ class CommandCenterService:
             None,
         )
 
+        cash_flow = _safe(
+            lambda: _cash_flow_section(self.session, company_id),
+            None,
+        )
+
         return {
             'health': health_section,
             'action_center': action_center,
@@ -164,5 +185,6 @@ class CommandCenterService:
             'benchmark': benchmark,
             'billing': billing,
             'balance_sheet': balance_sheet,
+            'cash_flow': cash_flow,
             'generated_at': date.today().isoformat(),
         }

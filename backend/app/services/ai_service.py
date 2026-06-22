@@ -332,6 +332,7 @@ Generate:
         )
 
         return {
+            "company_id": company_id,
             "kpis": kpis,
             "health_score": health,
             "alerts": alerts,
@@ -356,19 +357,67 @@ Generate:
             return "Some risk areas need attention this week."
         return "Multiple risk areas need immediate attention."
 
+    def _statement_brief_items(self, company_id):
+        """Convert balance-sheet and cash-flow engine insights into dashboard
+        brief items so those uploads surface in AI Insights. Returns
+        (balance_sheet_items, cash_flow_items)."""
+        bs_items, cf_items = [], []
+        if company_id is None:
+            return bs_items, cf_items
+
+        _PRI = {'good': 'low', 'neutral': 'low', 'bad': 'high'}
+        try:
+            from app.services.ingestion.balance_sheet_service import BalanceSheetService
+            for ins in BalanceSheetService(self.session).insights(company_id):
+                bs_items.append({
+                    "category": "financial_strength",
+                    "priority": _PRI.get(ins.get('tone'), 'medium'),
+                    "issue": ins.get('label', ''),
+                    "cause": ins.get('detail', ''),
+                    "recommendation": "Review your balance sheet position in the Command Center.",
+                    "expected_impact": "Stronger liquidity and financial stability.",
+                })
+        except Exception:
+            pass
+
+        try:
+            from app.services.cash_flow_service import CashFlowService
+            for ins in CashFlowService(self.session).insights(company_id):
+                cf_items.append({
+                    "category": "cash_flow",
+                    "priority": _PRI.get(ins.get('tone'), 'medium'),
+                    "issue": ins.get('label', ''),
+                    "cause": ins.get('detail', ''),
+                    "recommendation": "Monitor cash flow and the largest outflows.",
+                    "expected_impact": "Healthier cash runway.",
+                })
+        except Exception:
+            pass
+
+        return bs_items, cf_items
+
     def _deterministic_brief_items(self, context: Dict[str, Any]) -> List[Dict[str, str]]:
         kpis = context["kpis"]
         items: List[Dict[str, str]] = []
 
-        if kpis["revenue"] == 0 and kpis["total_expenses"] == 0:
+        # Pull insights from the balance-sheet and cash-flow engines so a user
+        # who uploads only a balance sheet or bank statement still gets real
+        # AI insights (not "no data found").
+        bs_items, cf_items = self._statement_brief_items(context.get("company_id"))
+
+        if kpis["revenue"] == 0 and kpis["total_expenses"] == 0 and not bs_items and not cf_items:
             return [{
                 "category": "general",
                 "priority": "high",
-                "issue": "No financial data found for the last 30 days.",
-                "cause": "No sales or expense records have been imported yet, or none fall within this date range.",
-                "recommendation": "Upload a sales and expense CSV or XLSX file from the Upload page to unlock real recommendations.",
-                "expected_impact": "Unlocks revenue, profit, cash flow, and risk insights tailored to your business.",
+                "issue": "No financial data found yet.",
+                "cause": "No sales, expense, balance-sheet or bank data has been imported, or none falls in this range.",
+                "recommendation": "Import any business file (sales, expenses, balance sheet, bank statement) from the Data Center to unlock insights.",
+                "expected_impact": "Unlocks revenue, profit, cash flow, liquidity, and risk insights tailored to your business.",
             }]
+
+        # Lead with statement-derived insights, then alert-derived ones.
+        items.extend(bs_items)
+        items.extend(cf_items)
 
         for alert in context["alerts"]:
             category = CATEGORY_BY_ALERT_TYPE.get(alert.alert_type, "general")

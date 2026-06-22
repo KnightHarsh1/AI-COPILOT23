@@ -83,6 +83,8 @@ class NormalizationService:
 
         handlers = {
             'sales': self._commit_sales,
+            'receivables': self._commit_sales,   # receivables are unpaid sales invoices
+            'gst_report': self._commit_sales,    # GST invoice register = sales with tax detail
             'expense': self._commit_expenses,
             'customer': self._commit_customers,
             'inventory': self._commit_inventory,
@@ -123,6 +125,7 @@ class NormalizationService:
     # -- Sales -----------------------------------------------------------
 
     def _commit_sales(self, rows: List[StagingRow], result: IngestionCommitResult) -> None:
+        seen_invoice_numbers = set()
         for row in rows:
             data = row.mapped_data or {}
             invoice_date = coerce_date(data.get('invoice_date'))
@@ -176,13 +179,36 @@ class NormalizationService:
             if due_date is not None and payment_status in ('unpaid', 'partial', 'unknown'):
                 is_credit_sale = True
 
+            # invoice_number is globally unique on the Sale table. The same
+            # invoice number legitimately appears across files (a Sales
+            # Register, its GST export, and its receivables report all share
+            # INV-1001). To avoid an IntegrityError that would fail the whole
+            # import, only keep the invoice number if it isn't already taken;
+            # otherwise store the row without it (the sale still imports).
+            invoice_number = data.get('invoice_number')
+            if invoice_number:
+                invoice_number = str(invoice_number).strip() or None
+            if invoice_number:
+                if invoice_number in seen_invoice_numbers:
+                    invoice_number = None
+                else:
+                    clash = (
+                        self.session.query(Sale.id)
+                        .filter(Sale.invoice_number == invoice_number)
+                        .first()
+                    )
+                    if clash:
+                        invoice_number = None
+                    else:
+                        seen_invoice_numbers.add(invoice_number)
+
             self.session.add(Sale(
                 company_id=row.batch.company_id,
                 invoice_date=invoice_date,
                 amount=amount,
                 category=category,
                 description=data.get('description'),
-                invoice_number=data.get('invoice_number'),
+                invoice_number=invoice_number,
                 source_file_id=row.batch.file_id,
                 due_date=due_date,
                 payment_status=payment_status,
