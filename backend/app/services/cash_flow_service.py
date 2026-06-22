@@ -115,16 +115,103 @@ class CashFlowService:
                 text = text[len(prefix):]
         return text[:40] if text else None
 
+    def runway(self, company_id) -> dict:
+        """Cash runway: how many months the current cash lasts at the recent
+        net burn rate. Returns {'available': False} when there isn't enough
+        data (need a balance and a negative net trend to project burn)."""
+        s = self.summary(company_id)
+        if not s.get('available'):
+            return {'available': False}
+        trend = self.monthly_trend(company_id)
+        cash = s.get('cash_position')
+        if cash is None:
+            return {'available': False, 'reason': 'No closing balance to project runway from.'}
+
+        # Average monthly net over the trend (or overall net / months).
+        months = max(len(trend), 1)
+        net_total = sum(_d(m['net']) for m in trend) if trend else _d(s['net_cash_flow'])
+        avg_monthly_net = net_total / months
+
+        cash_d = _d(cash)
+        if avg_monthly_net >= 0:
+            # Cash-positive — runway is effectively unlimited at current trend.
+            return {
+                'available': True,
+                'cash_position': float(cash_d),
+                'avg_monthly_net': float(avg_monthly_net),
+                'runway_months': None,
+                'status': 'positive',
+                'detail': 'Cash flow is net positive over the period — no burn-down runway to report.',
+            }
+
+        burn = abs(avg_monthly_net)
+        runway_months = float(cash_d / burn) if burn > 0 else None
+        # Stress detection thresholds.
+        if runway_months is not None and runway_months < 3:
+            status = 'critical'
+        elif runway_months is not None and runway_months < 6:
+            status = 'warning'
+        else:
+            status = 'ok'
+        return {
+            'available': True,
+            'cash_position': float(cash_d),
+            'avg_monthly_net': float(avg_monthly_net),
+            'monthly_burn': float(burn),
+            'runway_months': round(runway_months, 1) if runway_months is not None else None,
+            'status': status,
+            'detail': (
+                f'At the current burn of ₹{burn:,.0f}/month, cash lasts about '
+                f'{runway_months:.1f} months.' if runway_months is not None else
+                'Burn rate could not be computed.'
+            ),
+        }
+
+    def forecast(self, company_id, months_ahead=3) -> dict:
+        """Project closing cash for the next few months using the average
+        monthly net cash flow. Honest linear projection, labelled as such."""
+        s = self.summary(company_id)
+        if not s.get('available') or s.get('cash_position') is None:
+            return {'available': False}
+        trend = self.monthly_trend(company_id)
+        months = max(len(trend), 1)
+        net_total = sum(_d(m['net']) for m in trend) if trend else _d(s['net_cash_flow'])
+        avg_net = net_total / months
+
+        projection = []
+        running = _d(s['cash_position'])
+        from datetime import date
+        base = date.today()
+        for i in range(1, months_ahead + 1):
+            running = running + avg_net
+            m = base.month + i
+            y = base.year + (m - 1) // 12
+            m = ((m - 1) % 12) + 1
+            projection.append({
+                'month': f'{y:04d}-{m:02d}',
+                'projected_cash': float(round(running, 2)),
+            })
+        return {
+            'available': True,
+            'avg_monthly_net': float(round(avg_net, 2)),
+            'projection': projection,
+            'basis': 'Linear projection from average monthly net cash flow. Indicative, not a guarantee.',
+            'goes_negative': any(p['projected_cash'] < 0 for p in projection),
+        }
+
     def kpis(self, company_id) -> dict:
         s = self.summary(company_id)
         if not s.get('available'):
             return {'available': False}
+        rw = self.runway(company_id)
         return {
             'available': True,
             'cash_position': s['cash_position'],
             'net_cash_flow': s['net_cash_flow'],
             'total_inflow': s['total_inflow'],
             'total_outflow': s['total_outflow'],
+            'runway_months': rw.get('runway_months') if rw.get('available') else None,
+            'runway_status': rw.get('status') if rw.get('available') else None,
         }
 
     def insights(self, company_id) -> list:

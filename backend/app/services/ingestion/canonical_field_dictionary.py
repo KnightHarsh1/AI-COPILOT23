@@ -56,6 +56,16 @@ SALES_FIELDS: List[FieldSpec] = [
               ['outstanding', 'balance due', 'amount due', 'unpaid', 'pending amount', 'outstanding amount', 'balance']),
     FieldSpec('days_overdue', False, 'How many days the invoice is past due',
               ['days overdue', 'overdue days', 'ageing', 'aging', 'days past due', 'overdue']),
+    FieldSpec('taxable_value', False, 'The pre-tax taxable value of the invoice (GST)',
+              ['taxable value', 'taxable amount', 'taxable', 'assessable value']),
+    FieldSpec('cgst', False, 'Central GST amount',
+              ['cgst', 'central gst', 'cgst amount', 'cgst amt']),
+    FieldSpec('sgst', False, 'State GST amount',
+              ['sgst', 'state gst', 'sgst amount', 'sgst amt', 'utgst']),
+    FieldSpec('igst', False, 'Integrated GST amount',
+              ['igst', 'integrated gst', 'igst amount', 'igst amt']),
+    FieldSpec('total_tax', False, 'Total GST/tax on the invoice',
+              ['total tax', 'tax', 'tax amount', 'gst', 'gst amount', 'total gst']),
 ]
 
 EXPENSE_FIELDS: List[FieldSpec] = [

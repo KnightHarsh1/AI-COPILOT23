@@ -57,6 +57,8 @@ class ActionCenterService:
         actions.extend(self._from_expenses(company_id))
         actions.extend(self._from_customers(company_id))
         actions.extend(self._from_opportunities(company_id))
+        actions.extend(self._from_market(company_id))
+        actions.extend(self._from_reconciliation(company_id))
 
         actions.sort(key=lambda a: _PRIORITY_RANK.get(a['priority'], 1))
 
@@ -156,10 +158,17 @@ class ActionCenterService:
         return out
 
     def _from_compliance(self, company_id):
+        actions = []
+        # GST liability + risk actions from the GST intelligence engine.
+        try:
+            from app.services.intelligence.gst_intelligence_service import GSTIntelligenceService
+            actions.extend(GSTIntelligenceService(self.session).actions(company_id))
+        except Exception:
+            pass
         data = ComplianceIntelligenceService(self.session).analyze(company_id)
         if not data.get('available'):
-            return []
-        out = []
+            return actions
+        out = list(actions)
         for d in data.get('overdue', []):
             out.append(_action(
                 'compliance', 'high',
@@ -274,6 +283,27 @@ class ActionCenterService:
                 'Move funds in or pause outgoing payments until balance recovers.',
                 'today',
             ))
+        # Cash runway stress detection.
+        rw = cf.runway(company_id)
+        if rw.get('available') and rw.get('runway_months') is not None:
+            if rw['status'] == 'critical':
+                out.append(_action(
+                    'cash_runway', 'high',
+                    f'Cash runway is only {rw["runway_months"]:.1f} months',
+                    rw['detail'],
+                    'Early action prevents running out of cash.',
+                    'Cut burn, accelerate collections, or arrange financing now.',
+                    'today',
+                ))
+            elif rw['status'] == 'warning':
+                out.append(_action(
+                    'cash_runway', 'medium',
+                    f'Cash runway is {rw["runway_months"]:.1f} months',
+                    rw['detail'],
+                    'Extending runway reduces financial risk.',
+                    'Plan to improve cash flow over the coming weeks.',
+                    'week',
+                ))
         return out
 
     def _from_expenses(self, company_id):
@@ -323,4 +353,78 @@ class ActionCenterService:
             return OpportunityIntelligenceService(self.session).actions(company_id)
         except Exception:
             return []
+
+    def _from_market(self, company_id):
+        """Market Radar threats and opportunities → daily actions, so industry
+        signals become things the owner can act on rather than passive cards."""
+        from app.services.market.radar_service import MarketRadarService
+        try:
+            data = MarketRadarService(self.session).build(company_id)
+        except Exception:
+            return []
+        if not data.get('available'):
+            return []
+        out = []
+        for t in (data.get('top_threats') or [])[:2]:
+            out.append(_action(
+                'market_risk',
+                'high' if (t.get('severity') or 0) >= 60 else 'medium',
+                t.get('headline') or 'Industry threat detected',
+                t.get('why_it_matters') or 'A market signal may affect your business.',
+                'Prepares the business for an external market shift.',
+                t.get('recommended_action') or 'Review this market development and plan a response.',
+                'week',
+            ))
+        for o in (data.get('top_opportunities') or [])[:2]:
+            out.append(_action(
+                'market_opportunity',
+                'medium',
+                o.get('headline') or 'Industry opportunity detected',
+                o.get('why_it_matters') or 'A market signal presents an opportunity.',
+                'Captures an external market opportunity.',
+                o.get('recommended_action') or 'Explore this opportunity while it is timely.',
+                'month',
+            ))
+        return out
+
+    def _from_reconciliation(self, company_id):
+        """Bank reconciliation actions (unmatched deposits) from the Bank
+        Reconciliation engine."""
+        from app.services.bank_reconciliation_service import BankReconciliationService
+        try:
+            return BankReconciliationService(self.session).actions(company_id)
+        except Exception:
+            return []
+
+    def _from_market(self, company_id):
+        """Market Radar threats and opportunities become daily actions so
+        market intelligence reaches the action center, not just a widget."""
+        try:
+            from app.services.market.radar_service import MarketRadarService
+            data = MarketRadarService(self.session).build(company_id)
+        except Exception:
+            return []
+        if not data.get('available'):
+            return []
+        out = []
+        sev_to_pri = {'high': 'high', 'medium': 'medium', 'low': 'low'}
+        for t in (data.get('top_threats') or [])[:2]:
+            out.append(_action(
+                'market_risk', sev_to_pri.get(t.get('severity'), 'medium'),
+                t.get('headline') or 'Market threat detected',
+                t.get('why_it_matters') or 'A market signal may affect your business.',
+                'Staying ahead of market shifts protects revenue.',
+                t.get('recommended_action') or 'Review this market development and plan a response.',
+                'week',
+            ))
+        for o in (data.get('top_opportunities') or [])[:2]:
+            out.append(_action(
+                'market_opportunity', 'medium',
+                o.get('headline') or 'Market opportunity',
+                o.get('why_it_matters') or 'A market signal presents an opportunity.',
+                'Acting early on market trends can grow the business.',
+                o.get('recommended_action') or 'Explore how to capitalise on this trend.',
+                'month',
+            ))
+        return out
 

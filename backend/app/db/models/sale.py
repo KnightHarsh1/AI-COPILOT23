@@ -26,6 +26,13 @@ class Sale(Base):
     payment_status = Column(String(16), nullable=False, default='unknown')
     amount_paid = Column(Numeric(14, 2), nullable=False, default=0)
     is_credit_sale = Column(Boolean, nullable=False, default=False)
+    # GST tax detail — populated from GST R1 imports. Nullable so non-GST
+    # sales are unaffected; enables GST liability/health computation.
+    taxable_value = Column(Numeric(16, 2), nullable=True)
+    cgst = Column(Numeric(16, 2), nullable=True)
+    sgst = Column(Numeric(16, 2), nullable=True)
+    igst = Column(Numeric(16, 2), nullable=True)
+    total_tax = Column(Numeric(16, 2), nullable=True)
     paid_date = Column(Date, nullable=True)
     # Product Intelligence link (additive).
     inventory_item_id = Column(UUID(as_uuid=True), ForeignKey('inventory_items.id', ondelete='SET NULL'), nullable=True, index=True)

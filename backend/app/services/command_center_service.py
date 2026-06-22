@@ -56,16 +56,24 @@ def _cash_flow_section(session, company_id):
     """Cash-flow intelligence from imported bank statements. None when no bank
     data exists so the UI hides the section."""
     from app.services.cash_flow_service import CashFlowService
+    from app.services.bank_reconciliation_service import BankReconciliationService
     cf = CashFlowService(session)
     if not cf.has_bank_data(company_id):
         return None
-    return {
+    section = {
         'available': True,
         'summary': cf.summary(company_id),
         'trend': cf.monthly_trend(company_id),
         'spending': cf.spending_breakdown(company_id),
         'insights': cf.insights(company_id),
+        'runway': cf.runway(company_id),
+        'forecast': cf.forecast(company_id),
     }
+    try:
+        section['reconciliation'] = BankReconciliationService(session).reconcile(company_id, persist=True)
+    except Exception:
+        section['reconciliation'] = {'available': False}
+    return section
 
 
 def _customer_section(session, company_id):
@@ -99,6 +107,22 @@ def _profitability_section(session, company_id):
         'kpis': pl.kpis(company_id),
         'insights': pl.insights(company_id),
     }
+
+
+def _compliance_section(session, company_id):
+    """Compliance = deadline calendar (when to file) + GST intelligence (how
+    much / how healthy). Merges both so the dashboard shows liability and
+    health alongside the filing calendar."""
+    from app.services.intelligence.compliance_service import ComplianceIntelligenceService
+    from app.services.intelligence.gst_intelligence_service import GSTIntelligenceService
+    base = ComplianceIntelligenceService(session).analyze(company_id)
+    if not isinstance(base, dict):
+        base = {'available': False}
+    gst = GSTIntelligenceService(session).analyze(company_id)
+    if gst.get('available'):
+        base['available'] = True
+        base['gst'] = gst
+    return base
 
 
 class CommandCenterService:
@@ -154,7 +178,7 @@ class CommandCenterService:
 
         # Section 4 — Compliance Intelligence
         compliance = _safe(
-            lambda: ComplianceIntelligenceService(self.session).analyze(company_id),
+            lambda: _compliance_section(self.session, company_id),
             {'available': False, 'reason': 'Compliance data could not be loaded.'},
         )
 

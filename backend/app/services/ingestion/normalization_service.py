@@ -158,6 +158,23 @@ class NormalizationService:
         self._sale_customer_name_ok = ok
         return ok
 
+    def _sale_has_tax_columns(self) -> bool:
+        """Whether the live sales table has the GST tax columns. Cached.
+        Lets GST imports populate tax detail when the schema supports it, and
+        degrade gracefully (skip) when migration 0015 hasn't run yet."""
+        cached = getattr(self, '_sale_tax_cols_ok', None)
+        if cached is not None:
+            return cached
+        ok = False
+        try:
+            from sqlalchemy import inspect as _sa_inspect
+            cols = {c['name'] for c in _sa_inspect(self.session.get_bind()).get_columns('sales')}
+            ok = {'taxable_value', 'cgst', 'sgst', 'igst', 'total_tax'}.issubset(cols)
+        except Exception:
+            ok = False
+        self._sale_tax_cols_ok = ok
+        return ok
+
     def _commit_sales(self, rows: List[StagingRow], result: IngestionCommitResult) -> None:
         seen_invoice_numbers = set()
         for row in rows:
@@ -255,6 +272,13 @@ class NormalizationService:
             # whole import).
             if self._sale_has_customer_name() and data.get('customer_name'):
                 sale.customer_name = str(data.get('customer_name')).strip()[:256]
+            # Populate GST tax detail when those columns exist (self-heal adds
+            # them) and the import provided tax data.
+            if self._sale_has_tax_columns():
+                for fld in ('taxable_value', 'cgst', 'sgst', 'igst', 'total_tax'):
+                    val = coerce_amount(data.get(fld))
+                    if val is not None:
+                        setattr(sale, fld, val)
             self.session.add(sale)
             result.sales_added += 1
 

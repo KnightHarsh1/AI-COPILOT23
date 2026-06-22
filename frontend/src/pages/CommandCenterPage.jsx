@@ -29,6 +29,7 @@ import CashFlowCard from "../components/command/CashFlowCard";
 import CustomerIntelligenceCard from "../components/command/CustomerIntelligenceCard";
 import OpportunityCard from "../components/command/OpportunityCard";
 import ProfitabilityCard from "../components/command/ProfitabilityCard";
+import GstCard from "../components/command/GstCard";
 import ExpenseChart from "../components/common/charts/ExpenseChart";
 import HealthScoreChart from "../components/common/charts/HealthScoreChart";
 
@@ -191,6 +192,9 @@ function CommandCenterPage() {
 
                   {/* Opportunity Intelligence — cross-engine, full width */}
                   <OpportunityCard opportunities={data.opportunities} />
+
+                  {/* GST Intelligence — from uploaded GST R1 */}
+                  <GstCard gst={data.gst} />
 
                   <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
                     <CollectionsWidget data={data.collections} />
