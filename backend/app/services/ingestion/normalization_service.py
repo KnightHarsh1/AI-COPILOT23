@@ -38,11 +38,27 @@ _BALANCE_SHEET_RULES = [
     ('equity', ['share capital', 'reserve', 'surplus', 'capital account', 'equity', "owner's equity", 'owners equity', 'capital']),
 ]
 _PROFIT_AND_LOSS_RULES = [
-    ('revenue', ['sales', 'revenue', 'income from operations', 'gross revenue']),
-    ('cogs', ['cost of goods sold', 'cost of sales', 'purchases', 'opening stock', 'closing stock']),
-    ('other_income', ['other income', 'interest received', 'dividend received']),
-    ('operating_expenses', ['salary', 'wages', 'rent', 'electricity', 'expense', 'depreciation', 'administrative']),
-    ('other_expenses', ['interest paid', 'finance cost', 'other expense']),
+    # Subtotal lines first — captured as their own categories so they don't
+    # double-count with the component lines they summarise.
+    ('total_revenue', ['total revenue', 'total income', 'total sales']),
+    ('total_operating_expenses', ['total operating expense', 'total expenses', 'total opex']),
+    # Totals/subtotals next so "Gross Profit" doesn't match the "profit" in
+    # other lines, and so they're captured as their own categories.
+    ('net_profit', ['net profit', 'profit for the year', 'profit after tax', 'pat', 'net income', 'net earnings']),
+    ('profit_before_tax', ['profit before tax', 'pbt', 'pre-tax profit', 'profit before taxation']),
+    ('operating_profit', ['operating profit', 'ebit', 'operating income']),
+    ('gross_profit', ['gross profit', 'gross margin']),
+    ('tax', ['tax expense', 'income tax', 'tax', 'provision for tax']),
+    ('interest', ['interest expense', 'interest paid', 'finance cost', 'finance charges', 'interest']),
+    ('depreciation', ['depreciation', 'amortisation', 'amortization']),
+    ('cogs', ['cost of goods sold', 'cogs', 'cost of sales', 'direct expenses', 'direct cost', 'purchases', 'opening stock', 'closing stock']),
+    ('other_income', ['other income', 'interest received', 'dividend received', 'misc income']),
+    ('revenue', ['revenue from operations', 'sales revenue', 'net sales', 'gross revenue',
+                 'turnover', 'sales', 'revenue', 'income from operations']),
+    ('operating_expenses', ['operating expense', 'administrative expense', 'selling expense', 'salary', 'salaries',
+                            'wages', 'rent', 'electricity', 'utilities', 'marketing', 'transport', 'logistics',
+                            'expense', 'overhead', 'general expense']),
+    ('other_expenses', ['other expense', 'sundry expense', 'miscellaneous expense']),
 ]
 
 
@@ -54,7 +70,7 @@ def classify_line_category(label: str, statement_type: str) -> str:
         if any(kw in text for kw in keywords):
             return category
 
-    return 'other_income' if statement_type == 'profit_and_loss' else 'current_assets'
+    return 'other_expenses' if statement_type == 'profit_and_loss' else 'current_assets'
 
 
 class NormalizationService:

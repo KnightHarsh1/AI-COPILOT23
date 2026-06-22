@@ -394,6 +394,20 @@ Generate:
         except Exception:
             pass
 
+        try:
+            from app.services.ingestion.profit_loss_service import ProfitLossService
+            for ins in ProfitLossService(self.session).insights(company_id):
+                bs_items.append({
+                    "category": "profitability",
+                    "priority": _PRI.get(ins.get('tone'), 'medium'),
+                    "issue": ins.get('label', ''),
+                    "cause": ins.get('detail', ''),
+                    "recommendation": "Review your P&L margins and cost structure.",
+                    "expected_impact": "Stronger, more resilient profitability.",
+                })
+        except Exception:
+            pass
+
         return bs_items, cf_items
 
     def _deterministic_brief_items(self, context: Dict[str, Any]) -> List[Dict[str, str]]:

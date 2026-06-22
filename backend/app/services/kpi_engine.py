@@ -338,6 +338,39 @@ class KPIService:
         except Exception:
             pass
 
+        # --- P&L reconciliation (avoid double counting) ---
+        # Transactional Sales/Expense data is the PRIMARY source for revenue
+        # and profit. A P&L statement is a SECONDARY/summary source. To avoid
+        # double counting, we only fill revenue/profit FROM the P&L when there
+        # is no transactional data for the period (revenue and expenses both
+        # zero). When sales exist, the P&L still powers Profitability
+        # Intelligence (margins, EBITDA) but does not overwrite the KPIs.
+        try:
+            from app.services.ingestion.profit_loss_service import ProfitLossService
+            pl = ProfitLossService(self.session)
+            pl_kpis = pl.kpis(company_id)
+            if pl_kpis.get('available'):
+                results['pnl_available'] = True
+                # Always expose P&L-derived margins/EBITDA (additive, no clash).
+                results['gross_margin'] = pl_kpis.get('gross_margin')
+                results['operating_margin'] = pl_kpis.get('operating_margin')
+                results['ebitda'] = pl_kpis.get('ebitda')
+                results['profitability_score'] = pl_kpis.get('profitability_score')
+                no_txn = (not results.get('revenue')) and (not results.get('total_expenses'))
+                if no_txn:
+                    # No transactional data — use the P&L as the source of
+                    # revenue/profit so the dashboard isn't empty.
+                    if pl_kpis.get('revenue'):
+                        results['revenue'] = pl_kpis['revenue']
+                    if pl_kpis.get('gross_profit') is not None:
+                        results['gross_profit'] = pl_kpis['gross_profit']
+                    if pl_kpis.get('net_profit') is not None:
+                        results['net_profit'] = pl_kpis['net_profit']
+                    if pl_kpis.get('net_margin') is not None:
+                        results['profit_margin'] = pl_kpis['net_margin']
+        except Exception:
+            pass
+
         for metric_name, decimal_value in (
             ('revenue', revenue),
             ('gross_profit', gross_profit),

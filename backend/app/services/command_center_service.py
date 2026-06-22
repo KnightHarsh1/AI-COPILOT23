@@ -86,6 +86,21 @@ def _opportunity_section(session, company_id):
     return data if data.get('available') else None
 
 
+def _profitability_section(session, company_id):
+    """Profitability Intelligence from an uploaded P&L statement. None when no
+    P&L exists so the UI hides the section."""
+    from app.services.ingestion.profit_loss_service import ProfitLossService
+    pl = ProfitLossService(session)
+    if not pl.has_pnl(company_id):
+        return None
+    return {
+        'available': True,
+        'figures': pl.figures(company_id),
+        'kpis': pl.kpis(company_id),
+        'insights': pl.insights(company_id),
+    }
+
+
 class CommandCenterService:
     def __init__(self, session: Session):
         self.session = session
@@ -199,6 +214,11 @@ class CommandCenterService:
             None,
         )
 
+        profitability = _safe(
+            lambda: _profitability_section(self.session, company_id),
+            None,
+        )
+
         return {
             'health': health_section,
             'action_center': action_center,
@@ -216,5 +236,6 @@ class CommandCenterService:
             'cash_flow': cash_flow,
             'customers': customers,
             'opportunities': opportunities,
+            'profitability': profitability,
             'generated_at': date.today().isoformat(),
         }

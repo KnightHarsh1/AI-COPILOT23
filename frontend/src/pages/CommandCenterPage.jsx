@@ -28,6 +28,7 @@ import BalanceSheetCard from "../components/command/BalanceSheetCard";
 import CashFlowCard from "../components/command/CashFlowCard";
 import CustomerIntelligenceCard from "../components/command/CustomerIntelligenceCard";
 import OpportunityCard from "../components/command/OpportunityCard";
+import ProfitabilityCard from "../components/command/ProfitabilityCard";
 import ExpenseChart from "../components/common/charts/ExpenseChart";
 import HealthScoreChart from "../components/common/charts/HealthScoreChart";
 
@@ -164,6 +165,9 @@ function CommandCenterPage() {
 
                   {/* Cash flow from an uploaded bank statement */}
                   <CashFlowCard cashFlow={data.cash_flow} />
+
+                  {/* Profitability from an uploaded P&L statement */}
+                  <ProfitabilityCard profitability={data.profitability} />
 
                   {/* What changed + freshness nudge. Each may be empty; they
                       stack cleanly without leaving a lopsided grid cell. */}
