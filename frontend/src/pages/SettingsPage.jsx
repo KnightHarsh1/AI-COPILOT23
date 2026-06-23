@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, createContext, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import Navbar from '../components/common/Navbar';
 import AppearanceSettings from '../components/appearance/AppearanceSettings';
 import { useAccessProfile, ROLE_OPTIONS } from '../context/AccessProfileContext';
@@ -42,13 +43,55 @@ const SUMMARY_LENGTH_OPTIONS = [
   { value: 'long', label: 'Long' },
 ];
 
-function SectionCard({ title, description, children }) {
+const SettingsNavContext = createContext("profile");
+
+// Two-panel settings navigation. Each item's `id` matches a SectionCard `group`.
+const SETTINGS_NAV = [
+  { heading: "Account", items: [
+    { id: "profile", label: "My Profile" },
+    { id: "password", label: "Password" },
+    { id: "ai", label: "AI Preferences" },
+  ]},
+  { heading: "Organization", items: [
+    { id: "business", label: "Business Profile" },
+    { id: "compliance", label: "Compliance Details" },
+    { id: "team", label: "Team Access" },
+    { id: "users", label: "Users & Roles" },
+  ]},
+  { heading: "Communication", items: [
+    { id: "notifications", label: "Notifications" },
+    { id: "whatsapp", label: "WhatsApp Alerts" },
+  ]},
+  { heading: "Data & Privacy", items: [
+    { id: "data", label: "Your Data" },
+  ]},
+  { heading: "Billing", items: [
+    { id: "subscription", label: "Subscription Plan" },
+  ]},
+  { heading: "Business Intelligence", items: [
+    { id: "risk", label: "Risk Preferences" },
+  ]},
+  { heading: "System", items: [
+    { id: "appearance", label: "Appearance" },
+    { id: "account", label: "Account & Logout" },
+  ]},
+];
+
+function SectionCard({ title, description, children, group = "profile", id }) {
+  const active = useContext(SettingsNavContext);
+  if (group !== active) return null;
   return (
-    <section className="rounded-card border border-border bg-surface p-6 shadow-card">
+    <motion.section
+      id={id}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+      className="rounded-card border border-border bg-surface p-6 shadow-card"
+    >
       <h2 className="font-display text-lg font-semibold text-ink">{title}</h2>
       {description && <p className="mt-1 text-sm text-ink-muted">{description}</p>}
       <div className="mt-5">{children}</div>
-    </section>
+    </motion.section>
   );
 }
 
@@ -104,6 +147,10 @@ function SettingsPage() {
   const navigate = useNavigate();
   const { user, logout, updateUser } = useAuth();
   const { theme, setTheme } = useTheme();
+  const [activeSection, setActiveSection] = useState(() => {
+    if (typeof window === "undefined") return "profile";
+    return new URLSearchParams(window.location.search).get("section") || "profile";
+  });
 
   const [profile, setProfile] = useState({ first_name: '', last_name: '', email: '', company_name: '' });
   const [profileStatus, setProfileStatus] = useState(null);
@@ -343,13 +390,49 @@ function SettingsPage() {
       <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:grid-cols-[280px_1fr] lg:px-6">
         <Sidebar />
 
-        <main className="space-y-6 pb-12">
-          <section className="rounded-card border border-border bg-surface p-6 shadow-card">
+        <main className="pb-12">
+          <section className="mb-6 rounded-card border border-border bg-surface p-6 shadow-card">
             <h1 className="font-display text-3xl font-bold text-ink">Settings</h1>
             <p className="mt-2 text-ink-muted">Manage your profile, security, notifications, and AI preferences.</p>
           </section>
 
-          <SectionCard title="Appearance" description="Choose how Business Copilot looks on this device.">
+          <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
+            {/* Settings nav rail */}
+            <nav className="glass-card h-fit rounded-card p-3 lg:sticky lg:top-20">
+              {SETTINGS_NAV.map((sec) => (
+                <div key={sec.heading} className="mb-3 last:mb-0">
+                  <p className="px-3 pb-1 pt-2 text-[10px] font-bold uppercase tracking-wider text-ink-muted">{sec.heading}</p>
+                  {sec.items.map((it) => {
+                    const active = activeSection === it.id;
+                    return (
+                      <button
+                        key={it.id}
+                        type="button"
+                        onClick={() => setActiveSection(it.id)}
+                        className={`relative flex w-full items-center rounded-lg px-3 py-2 text-left text-sm font-medium transition ${active ? "bg-primary/10 text-primary" : "text-ink-muted hover:bg-bg-subtle hover:text-ink"}`}
+                      >
+                        {active && <motion.span layoutId="settings-active" className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-primary" />}
+                        {it.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+            </nav>
+
+            {/* Active section content */}
+            <SettingsNavContext.Provider value={activeSection}>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeSection}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="space-y-6"
+                >
+
+          <SectionCard title="Appearance" description="Choose how Business Copilot looks on this device." group="appearance">
             <div className="flex flex-wrap gap-2">
               {THEME_OPTIONS.map((option) => (
                 <button
@@ -367,11 +450,11 @@ function SettingsPage() {
             <p className="mt-3 text-xs text-ink-muted">Saved automatically and remembered after you refresh.</p>
           </SectionCard>
 
-          <SectionCard title="Appearance" description="Choose your accent colour and overall feel.">
+          <SectionCard title="Appearance" description="Choose your accent colour and overall feel." group="appearance">
             <AppearanceSettings />
           </SectionCard>
 
-          <SectionCard title="Profile" description="Your name, email, and company details.">
+          <SectionCard title="Profile" description="Your name, email, and company details." group="profile">
             <form onSubmit={handleProfileSave} className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <FieldInput
@@ -401,7 +484,7 @@ function SettingsPage() {
             </form>
           </SectionCard>
 
-          <SectionCard title="Business profile" description="Powers your Market Radar and keeps your data fresh with reminders.">
+          <SectionCard title="Business profile" description="Powers your Market Radar and keeps your data fresh with reminders." group="business">
             <StatusLine status={businessStatus} />
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block">
@@ -458,7 +541,7 @@ function SettingsPage() {
             </div>
           </SectionCard>
 
-          <SectionCard title="Profile picture" description="Upload a photo or pick a colored avatar shown across Business Copilot.">
+          <SectionCard title="Profile picture" description="Upload a photo or pick a colored avatar shown across Business Copilot." group="profile">
             <StatusLine status={avatarStatus} />
             <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
               {/* Current avatar preview */}
@@ -510,7 +593,7 @@ function SettingsPage() {
             </div>
           </SectionCard>
 
-          <SectionCard title="Compliance details" description="Your GSTIN and PAN power the GST, TDS, and ITR deadline tracker.">
+          <SectionCard title="Compliance details" description="Your GSTIN and PAN power the GST, TDS, and ITR deadline tracker." group="compliance">
             <StatusLine status={complianceStatus} />
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block">
@@ -552,27 +635,27 @@ function SettingsPage() {
             </div>
           </SectionCard>
 
-          <SectionCard title="Plan & billing" description="Upgrade to unlock Market Radar, WhatsApp alerts, team access and more.">
+          <SectionCard title="Plan & billing" description="Upgrade to unlock Market Radar, WhatsApp alerts, team access and more." group="subscription">
             <PlansManager />
           </SectionCard>
 
-          <SectionCard title="Notifications & WhatsApp" description="Get alerts and your weekly summary on email or WhatsApp.">
+          <SectionCard title="Notifications & WhatsApp" description="Get alerts and your weekly summary on email or WhatsApp." group="whatsapp">
             <NotificationSettings />
           </SectionCard>
 
-          <SectionCard title="Access profile" description="Preview the app as a different role. Your real permissions don't change.">
+          <SectionCard title="Access profile" description="Preview the app as a different role. Your real permissions don't change." group="team">
             <AccessProfileSwitcher />
           </SectionCard>
 
-          <SectionCard title="Team access" description="Invite your accountant or partner with the right role.">
+          <SectionCard title="Team access" description="Invite your accountant or partner with the right role." group="users">
             <TeamManager />
           </SectionCard>
 
-          <SectionCard title="Your data" description="Export everything or erase your business data.">
+          <SectionCard title="Your data" description="Export everything or erase your business data." group="data">
             <DataPrivacy />
           </SectionCard>
 
-          <SectionCard title="Risk preferences" description="Tune how cautious your alerts and recommendations are.">
+          <SectionCard title="Risk preferences" description="Tune how cautious your alerts and recommendations are." group="risk">
             <div className="inline-flex rounded-pill bg-bg-subtle p-1">
               {['cautious','balanced','aggressive'].map((r) => (
                 <button
@@ -587,7 +670,7 @@ function SettingsPage() {
             </div>
           </SectionCard>
 
-          <SectionCard title="Change password" description="Use a strong password you don't use elsewhere.">
+          <SectionCard title="Change password" description="Use a strong password you don't use elsewhere." group="password">
             <form onSubmit={handlePasswordSave} className="space-y-4">
               <FieldInput
                 label="Current password"
@@ -617,7 +700,7 @@ function SettingsPage() {
             </form>
           </SectionCard>
 
-          <SectionCard title="Notification preferences" description="Choose what Business Copilot keeps you posted on.">
+          <SectionCard title="Notification preferences" description="Choose what Business Copilot keeps you posted on." group="notifications">
             <div className="divide-y divide-border">
               <Toggle
                 label="Email alerts"
@@ -644,7 +727,7 @@ function SettingsPage() {
             <StatusLine status={notificationStatus} />
           </SectionCard>
 
-          <SectionCard title="AI preferences" description="Personalize how your Virtual CFO communicates.">
+          <SectionCard title="AI preferences" description="Personalize how your Virtual CFO communicates." group="ai">
             <div className="space-y-5">
               <div>
                 <p className="mb-2 text-sm font-medium text-ink">AI personality</p>
@@ -708,9 +791,13 @@ function SettingsPage() {
             </div>
           </SectionCard>
 
-          <SectionCard title="Account">
+          <SectionCard title="Account" group="account">
             <Button variant="danger" onClick={handleLogout}>Log out</Button>
           </SectionCard>
+                </motion.div>
+              </AnimatePresence>
+            </SettingsNavContext.Provider>
+          </div>
         </main>
       </div>
     </div>

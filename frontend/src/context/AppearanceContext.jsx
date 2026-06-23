@@ -30,26 +30,76 @@ const ACCENT_BY_ID = ACCENT_THEMES.reduce((m, a) => ((m[a.id] = a), m), {});
 // Full theme palettes. Each overrides the core surface CSS variables so the
 // entire UI (backgrounds, cards, borders, sidebar) re-skins instantly. Values
 // are "R G B" triples matching the --c-* variables in index.css.
+// `category` groups them in Settings; `badge`/`description` decorate the cards;
+// `isLight` flips color-scheme + the .dark class; `bgGradient` paints an
+// optional gradient backdrop (designer themes).
+export const THEME_CATEGORIES = [
+  { id: "dark", label: "Dark Themes" },
+  { id: "light", label: "Light & Bright Themes" },
+  { id: "premium", label: "Premium Themes" },
+  { id: "designer", label: "Designer Themes" },
+];
+
 export const THEMES = [
+  // ---- DARK ----
   {
-    id: "midnight", label: "Executive Neon",
+    id: "midnight", label: "Executive Neon", category: "dark", description: "Deep navy with neon indigo glow.",
     vars: { "--c-bg": "7 11 20", "--c-bg-subtle": "15 23 42", "--c-surface": "17 24 39", "--c-border": "30 38 58", "--c-ink": "241 244 252", "--c-ink-muted": "148 156 178", "--c-sidebar-bg": "11 16 28", "--c-primary": "109 93 252", "--c-primary-hover": "139 125 255" },
   },
   {
-    id: "sapphire", label: "Royal Sapphire",
+    id: "sapphire", label: "Royal Sapphire", category: "dark", description: "Rich sapphire blue executive look.",
     vars: { "--c-bg": "10 15 28", "--c-bg-subtle": "16 23 40", "--c-surface": "18 27 48", "--c-border": "33 46 74", "--c-ink": "236 242 255", "--c-ink-muted": "148 163 196", "--c-sidebar-bg": "8 12 24", "--c-primary": "59 130 246", "--c-primary-hover": "96 165 250" },
   },
   {
-    id: "graphite", label: "Graphite Gold",
+    id: "graphite", label: "Graphite Gold", category: "dark", description: "Charcoal graphite with warm gold.",
     vars: { "--c-bg": "18 18 19", "--c-bg-subtle": "26 26 28", "--c-surface": "30 30 32", "--c-border": "48 48 52", "--c-ink": "245 243 238", "--c-ink-muted": "163 161 154", "--c-sidebar-bg": "13 13 14", "--c-primary": "217 159 56", "--c-primary-hover": "234 179 88" },
   },
   {
-    id: "emerald", label: "Emerald Finance",
+    id: "emerald", label: "Emerald Finance", category: "dark", description: "Deep green finance aesthetic.",
     vars: { "--c-bg": "9 18 16", "--c-bg-subtle": "14 27 24", "--c-surface": "16 32 28", "--c-border": "30 54 47", "--c-ink": "235 252 246", "--c-ink-muted": "143 176 165", "--c-sidebar-bg": "7 14 12", "--c-primary": "16 185 129", "--c-primary-hover": "52 211 153" },
   },
   {
-    id: "aipurple", label: "AI Purple",
+    id: "aipurple", label: "AI Purple", category: "dark", description: "Violet-tinted AI intelligence look.",
     vars: { "--c-bg": "17 13 24", "--c-bg-subtle": "25 19 36", "--c-surface": "29 22 42", "--c-border": "49 38 68", "--c-ink": "243 238 252", "--c-ink-muted": "168 156 188", "--c-sidebar-bg": "13 10 19", "--c-primary": "139 92 246", "--c-primary-hover": "167 139 250" },
+  },
+
+  // ---- LIGHT & BRIGHT ----
+  {
+    id: "prolight", label: "Professional Light", category: "light", isLight: true, description: "Clean white enterprise SaaS.",
+    vars: { "--c-bg": "255 255 255", "--c-bg-subtle": "241 245 249", "--c-surface": "255 255 255", "--c-border": "226 232 240", "--c-ink": "15 23 42", "--c-ink-muted": "100 116 139", "--c-sidebar-bg": "248 250 252", "--c-sidebar-ink": "15 23 42", "--c-sidebar-muted": "100 116 139", "--c-primary": "37 99 235", "--c-primary-hover": "59 130 246" },
+  },
+  {
+    id: "arctic", label: "Arctic Blue", category: "light", isLight: true, description: "Bright, trustworthy fintech blue.",
+    vars: { "--c-bg": "240 249 255", "--c-bg-subtle": "224 242 254", "--c-surface": "255 255 255", "--c-border": "186 230 253", "--c-ink": "12 74 110", "--c-ink-muted": "51 105 140", "--c-sidebar-bg": "255 255 255", "--c-sidebar-ink": "12 74 110", "--c-sidebar-muted": "71 105 130", "--c-primary": "2 132 199", "--c-primary-hover": "14 165 233" },
+  },
+  {
+    id: "sunrise", label: "Sunrise Orange", category: "light", isLight: true, description: "Warm, energetic growth theme.",
+    vars: { "--c-bg": "255 251 247", "--c-bg-subtle": "255 243 230", "--c-surface": "255 255 255", "--c-border": "254 215 170", "--c-ink": "67 33 11", "--c-ink-muted": "124 84 58", "--c-sidebar-bg": "255 255 255", "--c-sidebar-ink": "67 33 11", "--c-sidebar-muted": "124 84 58", "--c-primary": "234 88 12", "--c-primary-hover": "249 115 22" },
+  },
+  {
+    id: "cyberlime", label: "Cyber Lime", category: "light", isLight: true, description: "Futuristic AI analytics in lime.",
+    vars: { "--c-bg": "247 254 231", "--c-bg-subtle": "236 252 203", "--c-surface": "255 255 255", "--c-border": "217 249 157", "--c-ink": "26 46 5", "--c-ink-muted": "77 101 45", "--c-sidebar-bg": "26 46 5", "--c-sidebar-ink": "236 252 203", "--c-sidebar-muted": "163 196 122", "--c-primary": "101 163 13", "--c-primary-hover": "132 204 22" },
+  },
+
+  // ---- PREMIUM ----
+  {
+    id: "cosmic", label: "Cosmic Nexus", category: "premium", badge: "PREMIUM", description: "AI-first premium executive theme.",
+    vars: { "--c-bg": "5 8 22", "--c-bg-subtle": "11 16 35", "--c-surface": "18 26 53", "--c-border": "40 50 90", "--c-ink": "248 250 252", "--c-ink-muted": "150 160 195", "--c-sidebar-bg": "5 8 22", "--c-primary": "124 92 255", "--c-primary-hover": "150 120 255", "--c-gold": "217 70 239" },
+  },
+  {
+    id: "luxe", label: "Luxe Champagne", category: "premium", badge: "PREMIUM", description: "Luxury finance & executive theme.",
+    vars: { "--c-bg": "11 11 11", "--c-bg-subtle": "17 17 17", "--c-surface": "24 24 24", "--c-border": "58 52 38", "--c-ink": "255 248 225", "--c-ink-muted": "180 168 140", "--c-sidebar-bg": "11 11 11", "--c-primary": "212 175 55", "--c-primary-hover": "245 210 122", "--c-gold": "255 215 0" },
+  },
+
+  // ---- DESIGNER ----
+  {
+    id: "aurora", label: "Aurora Mist", category: "designer", badge: "DESIGNER", isLight: true, description: "Modern SaaS designer theme.",
+    bgGradient: "linear-gradient(135deg, #D8F3FF 0%, #E9D5FF 50%, #ECFEFF 100%)",
+    vars: { "--c-bg": "233 245 255", "--c-bg-subtle": "233 213 255", "--c-surface": "255 255 255", "--c-border": "199 210 254", "--c-ink": "15 23 42", "--c-ink-muted": "71 85 105", "--c-sidebar-bg": "255 255 255", "--c-sidebar-ink": "15 23 42", "--c-sidebar-muted": "71 85 105", "--c-primary": "20 184 166", "--c-primary-hover": "94 234 212" },
+  },
+  {
+    id: "neumorph", label: "Neumorph Wave", category: "designer", badge: "DESIGNER", isLight: true, description: "Creative modern business theme.",
+    vars: { "--c-bg": "238 242 255", "--c-bg-subtle": "248 250 252", "--c-surface": "255 255 255", "--c-border": "224 231 255", "--c-ink": "30 41 59", "--c-ink-muted": "100 116 139", "--c-sidebar-bg": "248 250 252", "--c-sidebar-ink": "30 41 59", "--c-sidebar-muted": "100 116 139", "--c-primary": "139 92 246", "--c-primary-hover": "167 139 250" },
   },
 ];
 const THEME_BY_ID = THEMES.reduce((m, t) => ((m[t.id] = t), m), {});
@@ -176,7 +226,21 @@ export function AppearanceProvider({ children }) {
   useEffect(() => {
     const root = document.documentElement;
     const theme = THEME_BY_ID[appearance.theme] || THEME_BY_ID.midnight;
-    if (theme) for (const [k, v] of Object.entries(theme.vars)) root.style.setProperty(k, v);
+    if (!theme) return;
+    // Dark themes don't carry sidebar ink/muted overrides; restore the dark
+    // defaults first so a previously-applied light theme doesn't leak through.
+    if (!theme.vars["--c-sidebar-ink"]) {
+      root.style.setProperty("--c-sidebar-ink", "226 232 245");
+      root.style.setProperty("--c-sidebar-muted", "130 139 162");
+    }
+    if (!theme.vars["--c-gold"]) root.style.removeProperty("--c-gold");
+    for (const [k, v] of Object.entries(theme.vars)) root.style.setProperty(k, v);
+    // Light themes flip color-scheme and the .dark class so form controls,
+    // scrollbars, and any .dark-scoped utilities match.
+    root.classList.toggle("dark", !theme.isLight);
+    root.style.colorScheme = theme.isLight ? "light" : "dark";
+    // Optional gradient backdrop (designer themes).
+    root.style.setProperty("--c-bg-image", theme.bgGradient || "none");
   }, [appearance.theme]);
 
   // Font family.

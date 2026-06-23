@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Reorder } from "framer-motion";
+import { Reorder, motion } from "framer-motion";
 import { GripVertical } from "lucide-react";
-import { useAppearance, ACCENT_THEMES, THEMES, FONTS, DASHBOARD_WIDGETS } from "../../context/AppearanceContext";
+import { useAppearance, ACCENT_THEMES, THEMES, THEME_CATEGORIES, FONTS, DASHBOARD_WIDGETS } from "../../context/AppearanceContext";
 
 // Full customization panel. All controls are presentation-only — they write to
 // the appearance preferences (persisted per user) and re-skin the UI via CSS
@@ -102,32 +102,117 @@ function WidgetManager() {
   );
 }
 
+// Miniature dashboard preview rendered in the chosen theme's colours. Shows a
+// sidebar, navbar, KPI cards, a chart, and a health ring so the user sees the
+// full effect before committing. Pure visual; uses the theme's own var values.
+function ThemePreview({ theme }) {
+  if (!theme) return null;
+  const v = theme.vars;
+  const c = (k, fb) => (v[k] ? `rgb(${v[k]})` : fb);
+  const bg = theme.bgGradient ? { backgroundImage: theme.bgGradient } : { background: c("--c-bg") };
+  const sideInk = v["--c-sidebar-ink"] ? `rgb(${v["--c-sidebar-ink"]})` : "rgb(226 232 245)";
+  return (
+    <div className="overflow-hidden rounded-xl border border-border" style={bg}>
+      <div className="flex h-[148px]">
+        {/* Sidebar */}
+        <div className="w-[28%] p-2" style={{ background: c("--c-sidebar-bg") }}>
+          <div className="mb-2 h-2 w-3/4 rounded" style={{ background: c("--c-primary") }} />
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="mb-1.5 h-1.5 w-full rounded" style={{ background: i === 0 ? c("--c-primary") : sideInk, opacity: i === 0 ? 1 : 0.35 }} />
+          ))}
+        </div>
+        {/* Main */}
+        <div className="flex-1 p-2.5">
+          {/* Navbar */}
+          <div className="mb-2 flex items-center justify-between">
+            <div className="h-1.5 w-12 rounded" style={{ background: c("--c-ink"), opacity: 0.7 }} />
+            <div className="h-3 w-3 rounded-full" style={{ background: c("--c-primary") }} />
+          </div>
+          {/* KPI cards */}
+          <div className="mb-2 grid grid-cols-3 gap-1.5">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="rounded p-1.5" style={{ background: c("--c-surface"), border: `1px solid ${c("--c-border")}` }}>
+                <div className="h-1 w-2/3 rounded" style={{ background: c("--c-ink-muted") }} />
+                <div className="mt-1 h-1.5 w-full rounded" style={{ background: c("--c-primary") }} />
+              </div>
+            ))}
+          </div>
+          {/* Chart + health */}
+          <div className="flex gap-1.5">
+            <div className="flex h-[44px] flex-1 items-end gap-1 rounded p-1.5" style={{ background: c("--c-surface"), border: `1px solid ${c("--c-border")}` }}>
+              {[40, 65, 50, 80, 60].map((h, i) => (
+                <div key={i} className="flex-1 rounded-t" style={{ height: `${h}%`, background: c("--c-primary"), opacity: 0.7 + i * 0.05 }} />
+              ))}
+            </div>
+            <div className="flex h-[44px] w-[44px] items-center justify-center rounded-full" style={{ border: `3px solid ${c("--c-primary")}`, background: c("--c-surface") }}>
+              <div className="h-1 w-3 rounded" style={{ background: c("--c-ink"), opacity: 0.7 }} />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AppearanceSettings() {
   const { appearance, update, reset, presets, savePreset, applyPreset, deletePreset, setDefaultPreset } = useAppearance();
   const [presetName, setPresetName] = useState("");
+  const [preview, setPreview] = useState(null);
   const a = appearance;
+  const previewTheme = THEMES.find((t) => t.id === (preview || a.theme));
 
   return (
     <div className="space-y-7">
-      {/* Theme palette */}
-      <Row label="Theme" hint="Re-skins the entire interface — backgrounds, cards, borders, and navigation.">
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-          {THEMES.map((t) => {
-            const selected = a.theme === t.id;
+      {/* Live preview thumbnail */}
+      <Row label="Live preview" hint="Hover any theme below to preview it here.">
+        <ThemePreview theme={previewTheme} />
+      </Row>
+
+      {/* Theme palette — grouped by category, each a rich card */}
+      <Row label="Theme" hint="Re-skins the entire interface — backgrounds, cards, borders, navigation, charts, and badges.">
+        <div className="space-y-5">
+          {THEME_CATEGORIES.map((cat) => {
+            const items = THEMES.filter((t) => t.category === cat.id);
+            if (items.length === 0) return null;
             return (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => update({ theme: t.id })}
-                className={`flex items-center gap-2.5 rounded-xl border-2 p-3 text-left transition ${selected ? "border-primary" : "border-border hover:border-ink-muted/40"}`}
-              >
-                <span className="flex gap-1">
-                  <span className="h-6 w-3 rounded-l" style={{ background: `rgb(${t.vars["--c-bg"]})` }} />
-                  <span className="h-6 w-3" style={{ background: `rgb(${t.vars["--c-surface"]})` }} />
-                  <span className="h-6 w-3 rounded-r" style={{ background: `rgb(${t.vars["--c-primary"]})` }} />
-                </span>
-                <span className="text-xs font-semibold text-ink">{t.label}</span>
-              </button>
+              <div key={cat.id}>
+                <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-ink-muted">{cat.label}</p>
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                  {items.map((t) => {
+                    const selected = a.theme === t.id;
+                    return (
+                      <motion.button
+                        key={t.id}
+                        type="button"
+                        onClick={() => update({ theme: t.id })}
+                        onMouseEnter={() => setPreview(t.id)}
+                        onMouseLeave={() => setPreview(null)}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        className={`group relative overflow-hidden rounded-xl border-2 p-3 text-left transition ${selected ? "border-primary shadow-card" : "border-border hover:border-primary/40"}`}
+                      >
+                        {/* Mini palette preview band */}
+                        <div className="flex h-10 overflow-hidden rounded-lg" style={t.bgGradient ? { backgroundImage: t.bgGradient } : { background: `rgb(${t.vars["--c-bg"]})` }}>
+                          <span className="m-auto flex gap-1">
+                            <span className="h-5 w-5 rounded" style={{ background: `rgb(${t.vars["--c-surface"]})` }} />
+                            <span className="h-5 w-5 rounded" style={{ background: `rgb(${t.vars["--c-primary"]})` }} />
+                            <span className="h-5 w-5 rounded" style={{ background: `rgb(${t.vars["--c-primary-hover"]})` }} />
+                            {t.vars["--c-gold"] && <span className="h-5 w-5 rounded" style={{ background: `rgb(${t.vars["--c-gold"]})` }} />}
+                          </span>
+                        </div>
+                        <div className="mt-2.5 flex items-center gap-2">
+                          <span className="text-sm font-bold text-ink">{t.label}</span>
+                          {t.badge && (
+                            <span className={`rounded-pill px-2 py-0.5 text-[9px] font-bold tracking-wide ${t.badge === "PREMIUM" ? "bg-gold/15 text-gold" : "bg-primary/15 text-primary"}`}>{t.badge}</span>
+                          )}
+                          {selected && <span className="ml-auto text-xs font-bold text-primary">✓</span>}
+                        </div>
+                        {t.description && <p className="mt-0.5 text-xs text-ink-muted">{t.description}</p>}
+                      </motion.button>
+                    );
+                  })}
+                </div>
+              </div>
             );
           })}
         </div>

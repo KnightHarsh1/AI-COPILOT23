@@ -21,6 +21,13 @@ function HealthHero({ health, healthStyle }) {
   const h = health || {};
   const components = h.components || {};
   const unavailable = new Set((h.components_unavailable || []).map((c) => c.component));
+  const conf = h.data_completeness != null ? Math.round(h.data_completeness) : null;
+  // Trust metadata reused across the KPI cards. Only fields the payload actually
+  // supports are shown; everything else degrades gracefully in the drawer.
+  const exp = (title, source, formula, logic) => ({
+    title, hint: logic,
+    detail: { source, formula, logic, dateRange: "Last 30 days", confidence: conf, lastRefresh: h.last_updated || h.as_of || "Latest import" },
+  });
 
   return (
     <section className="space-y-5">
@@ -36,6 +43,7 @@ function HealthHero({ health, healthStyle }) {
           sparkColor="rgb(var(--c-primary))"
           sparkUp={(h.growth_rate ?? 1) >= 0}
           seed={2}
+          explain={exp("Revenue (30d)", "Sales register (paid + recorded invoices)", "Σ invoice totals in period", "Sum of all sales recorded in the last 30 days.")}
         />
         <StatCard
           label="Net profit (30d)"
@@ -45,6 +53,7 @@ function HealthHero({ health, healthStyle }) {
           sparkColor="rgb(var(--c-risk-low))"
           sparkUp={(h.net_profit ?? 0) >= 0}
           seed={5}
+          explain={exp("Net profit (30d)", "Sales & expense ledgers", "Revenue − total expenses", "Revenue for the period minus all recorded expenses.")}
         />
         <StatCard
           label="Receivables"
@@ -54,6 +63,7 @@ function HealthHero({ health, healthStyle }) {
           sparkColor="rgb(var(--c-gold))"
           sparkUp
           seed={8}
+          explain={exp("Receivables", "Unpaid customer invoices", "Σ unpaid invoice balances", "Total still owed to you across open invoices.")}
         />
         <StatCard
           label="Cash position"
@@ -63,6 +73,7 @@ function HealthHero({ health, healthStyle }) {
           sparkColor="rgb(var(--c-primary))"
           sparkUp
           seed={11}
+          explain={exp("Cash position", "Bank & cash accounts / collections", "Opening balance + inflows − outflows", "Estimated cash on hand from recorded movements.")}
         />
         <StatCard
           label="Working capital"
@@ -73,6 +84,7 @@ function HealthHero({ health, healthStyle }) {
           sparkColor="rgb(var(--c-primary))"
           sparkUp={(h.working_capital ?? 0) >= 0}
           seed={14}
+          explain={exp("Working capital", "Balance sheet (current accounts)", "Current assets − current liabilities", "Short-term liquidity buffer for operations.")}
         />
         <StatCard
           label="Expenses (30d)"
@@ -82,6 +94,7 @@ function HealthHero({ health, healthStyle }) {
           sparkColor="rgb(var(--c-gold))"
           sparkUp={false}
           seed={17}
+          explain={exp("Expenses (30d)", "Expense ledger", "Σ expense entries in period", "All costs recorded over the last 30 days.")}
         />
       </div>
 
