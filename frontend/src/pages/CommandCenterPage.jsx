@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useAppearance } from "../context/AppearanceContext";
 import { resolveAppearance } from "../components/appearance/resolveAppearance";
@@ -10,7 +11,6 @@ import Navbar from "../components/common/Navbar";
 import Sidebar from "../components/common/Sidebar";
 import CommandCenterService from "../services/commandCenterService";
 import HealthHero from "../components/command/HealthHero";
-import ActionCenter from "../components/command/ActionCenter";
 import CollectionsWidget from "../components/command/CollectionsWidget";
 import ProductWidget from "../components/command/ProductWidget";
 import ComplianceWidget from "../components/command/ComplianceWidget";
@@ -24,17 +24,24 @@ import AskBox from "../components/command/AskBox";
 import ScoreChangeCard from "../components/command/ScoreChangeCard";
 import GoalsBenchmark from "../components/command/GoalsBenchmark";
 import CashKpiStrip from "../components/command/CashKpiStrip";
-import BalanceSheetCard from "../components/command/BalanceSheetCard";
-import CashFlowCard from "../components/command/CashFlowCard";
 import CustomerIntelligenceCard from "../components/command/CustomerIntelligenceCard";
 import OpportunityCard from "../components/command/OpportunityCard";
-import ProfitabilityCard from "../components/command/ProfitabilityCard";
 import GstCard from "../components/command/GstCard";
+import CeoBriefing from "../components/command/CeoBriefing";
+import RisksOpportunities from "../components/command/RisksOpportunities";
+import HealthScoreExplainer from "../components/command/HealthScoreExplainer";
+import MoneySummaryBar from "../components/command/MoneySummaryBar";
+import DailyActionsPanel from "../components/command/DailyActionsPanel";
+import SetupPill from "../components/common/SetupPill";
+import IntelligenceHub from "../components/command/IntelligenceHub";
+import GrowthService from "../services/growthService";
 import ExpenseChart from "../components/common/charts/ExpenseChart";
 import HealthScoreChart from "../components/common/charts/HealthScoreChart";
 
 const TABS = [
   { id: "today", label: "Today" },
+  { id: "risks", label: "Risks & opportunities" },
+  { id: "actions", label: "Daily actions" },
   { id: "intelligence", label: "Intelligence" },
   { id: "goals", label: "Goals & trends" },
 ];
@@ -48,7 +55,37 @@ function CommandCenterPage() {
   const [loadError, setLoadError] = useState(false);
   const [setupOpen, setSetupOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [tab, setTab] = useState("today");
+  const [tab, setTab] = useState(() => {
+    if (typeof window === "undefined") return "today";
+    const p = new URLSearchParams(window.location.search).get("tab");
+    return ["today", "risks", "actions", "intelligence", "goals"].includes(p) ? p : "today";
+  });
+  const [scoreChange, setScoreChange] = useState(null);
+  const [actionLevel, setActionLevel] = useState(() => {
+    if (typeof window === "undefined") return "all";
+    return new URLSearchParams(window.location.search).get("level") || "all";
+  });
+  const [intelCategory, setIntelCategory] = useState(() => {
+    if (typeof window === "undefined") return null;
+    return new URLSearchParams(window.location.search).get("intel");
+  });
+  const [reopenedOnboarding, setReopenedOnboarding] = useState(false);
+
+  const dismissOnboarding = useCallback(() => {
+    setReopenedOnboarding(false);
+  }, []);
+
+  const reopenOnboarding = useCallback(() => {
+    setReopenedOnboarding(true);
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
+  // From the Attention Meter's View buttons: jump to Daily Actions filtered.
+  const viewAttentionLevel = useCallback((level) => {
+    setActionLevel(level);
+    setTab("actions");
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -61,11 +98,25 @@ function CommandCenterPage() {
     } finally {
       setLoading(false);
     }
+    // Score change powers the CEO briefing's "improved from X to Y" line.
+    GrowthService.getScoreChange().then(setScoreChange).catch(() => setScoreChange(null));
   }, []);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  // React to sidebar submenu navigation (?tab= / ?level=) while already on the page.
+  const _loc = useLocation();
+  useEffect(() => {
+    const params = new URLSearchParams(_loc.search);
+    const t = params.get("tab");
+    const lvl = params.get("level");
+    if (t && ["today", "risks", "actions", "intelligence", "goals"].includes(t)) setTab(t);
+    if (lvl) setActionLevel(lvl);
+    const intel = params.get("intel");
+    if (intel) { setIntelCategory(intel); setTab("intelligence"); }
+  }, [_loc.search]);
 
   // Refetch when the tab/window regains focus, so returning to the dashboard
   // after an import always reflects the latest data even in this SPA.
@@ -91,26 +142,21 @@ function CommandCenterPage() {
         <Sidebar />
 
         <main className="min-w-0 space-y-6">
-          {/* Briefing header */}
-          <section className="overflow-hidden rounded-card border border-border bg-surface shadow-card">
-            <div className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex min-w-0 items-center gap-4">
+          {/* Lightweight greeting shown only while data loads; once loaded,
+              the full CEO Briefing below replaces it. */}
+          {(loading || loadError) && (
+            <section className="overflow-hidden rounded-card border border-border bg-surface shadow-card">
+              <div className="flex items-center gap-4 p-6">
                 <Avatar user={user} />
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">
-                    {todayLabel()}
-                  </p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">{todayLabel()}</p>
                   <h1 className="font-display mt-1 truncate text-2xl font-bold text-ink sm:text-3xl">
                     {greeting()}{user?.first_name ? `, ${user.first_name}` : ""}
                   </h1>
-                  <p className="mt-1 text-sm text-ink-muted">Here&rsquo;s what matters in your business today.</p>
                 </div>
               </div>
-              {data?.health?.health_score != null && (
-                <HealthScore score={Math.round(data.health.health_score)} style={ui.healthStyle} skin={ui.healthSkin} />
-              )}
-            </div>
-          </section>
+            </section>
+          )}
 
           {loading && (
             <div className="flex items-center justify-center rounded-card border border-border bg-surface p-12">
@@ -126,11 +172,25 @@ function CommandCenterPage() {
 
           {!loading && data && (
             <>
-              {/* Setup first if data is incomplete — nothing else matters until then */}
-              {incomplete && <OnboardingCard coverage={data.coverage} onChanged={load} />}
+              {/* Compact setup pill at the very top — no large onboarding
+                  banner occupies the dashboard body. Reopenable any time. */}
+              {incomplete && (
+                <div className="flex items-center justify-between">
+                  <SetupPill coverage={data.coverage} onContinue={reopenOnboarding} />
+                </div>
+              )}
 
-              {/* Tabs keep the page calm: one focus at a time */}
-              <div className="flex gap-1 overflow-x-auto rounded-pill border border-border bg-surface p-1">
+              {/* Onboarding card only shows when the user explicitly reopens it
+                  via the pill. By default it stays out of the body. */}
+              {incomplete && reopenedOnboarding && (
+                <OnboardingCard coverage={data.coverage} onChanged={load} onDismiss={dismissOnboarding} />
+              )}
+
+              {/* 1. GREETING HERO — executive hero section, above the tabs */}
+              <CeoBriefing data={data} user={user} scoreChange={scoreChange} />
+
+              {/* 2. TAB NAVIGATION — directly below the greeting */}
+              <div id="dashboard-tabs" className="flex gap-1 overflow-x-auto rounded-pill border border-border bg-surface p-1">
                 {TABS.map((t) => (
                   <button
                     key={t.id}
@@ -146,64 +206,58 @@ function CommandCenterPage() {
               </div>
 
               {tab === "today" && (
-                <div className="space-y-6">
-                  {/* The advisor speaks first */}
-                  <ProactiveBrief />
-
-                  {/* The four numbers + health. Classic keeps the rich
-                      HealthHero; other styles use the KPI grid variant. */}
+                <div id="today-section" className="space-y-6">
+                  {/* 1. KPI ROW — Revenue / Profit / Receivables / Cash / WC / Expenses */}
                   {ui.kpiStyle === "classic" ? (
                     <HealthHero health={data.health} />
                   ) : (
                     <KpiGrid health={data.health} style={ui.kpiStyle} />
                   )}
 
-                  {/* Cash position in plain language with verdicts */}
+                  {/* 2. MONEY SUMMARY BAR — at risk / to recover / opportunity */}
+                  <MoneySummaryBar
+                    actionCenter={data.action_center}
+                    collections={data.collections}
+                    opportunities={data.opportunities}
+                  />
+
+                  {/* 3. BUSINESS HEALTH */}
+                  <HealthScoreExplainer health={data.health} scoreChange={scoreChange} />
+
+                  {/* 4. CASH & WORKING CAPITAL (executive KPI strip only;
+                      detailed Financial Position and Profitability live in the
+                      Intelligence tab) */}
                   <CashKpiStrip health={data.health} />
 
-                  {/* Financial position from an uploaded balance sheet */}
-                  <BalanceSheetCard balanceSheet={data.balance_sheet} />
-
-                  {/* Cash flow from an uploaded bank statement */}
-                  <CashFlowCard cashFlow={data.cash_flow} />
-
-                  {/* Profitability from an uploaded P&L statement */}
-                  <ProfitabilityCard profitability={data.profitability} />
-
-                  {/* What changed + freshness nudge. Each may be empty; they
-                      stack cleanly without leaving a lopsided grid cell. */}
+                  {/* What changed + freshness */}
                   <div className="grid gap-5 [&>*]:min-w-0 sm:grid-cols-2 [&>*:only-child]:sm:col-span-2">
                     <ScoreChangeCard />
                     <FreshnessBanner freshness={data.freshness} />
                   </div>
 
-                  {/* Today's actions */}
-                  <ActionCenter actionCenter={data.action_center} />
-
-                  {/* Ask anything */}
+                  {/* 5. AI CFO SAYS — the conclusion after reviewing all metrics */}
+                  <ProactiveBrief />
                   <AskBox />
                 </div>
               )}
 
+              {tab === "risks" && (
+                <RisksOpportunities actionCenter={data.action_center} />
+              )}
+
+              {tab === "actions" && (
+                <DailyActionsPanel actionCenter={data.action_center} initialLevel={actionLevel} />
+              )}
+
               {tab === "intelligence" && (
-                <div className="space-y-6">
-                  {/* Customer Intelligence — core module, full width */}
-                  <CustomerIntelligenceCard customers={data.customers} />
-
-                  {/* Opportunity Intelligence — cross-engine, full width */}
-                  <OpportunityCard opportunities={data.opportunities} />
-
-                  {/* GST Intelligence — from uploaded GST R1 */}
-                  <GstCard gst={data.gst} />
-
-                  <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-                    <CollectionsWidget data={data.collections} />
-                    <ProductWidget data={data.product} />
-                    <ComplianceWidget data={data.compliance} onSetup={() => setSetupOpen(true)} />
-                    <MarketRadarWidget data={data.market} onSetup={() => setProfileOpen(true)} onChanged={load} />
-                  </div>
-                  <InsightsPanel insights={data.insights} variant={ui.insightsStyle} />
-                </div>
+                <IntelligenceHub
+                  data={data}
+                  insightsStyle={ui.insightsStyle}
+                  initialCategory={intelCategory}
+                  onSetup={() => setSetupOpen(true)}
+                  onProfile={() => setProfileOpen(true)}
+                  onReload={load}
+                />
               )}
 
               {tab === "goals" && (

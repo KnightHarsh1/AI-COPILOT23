@@ -367,7 +367,7 @@ function SettingsPage() {
             <p className="mt-3 text-xs text-ink-muted">Saved automatically and remembered after you refresh.</p>
           </SectionCard>
 
-          <SectionCard title="Dashboard & health style" description="Switch dashboard themes, health-score styles, skins, and build your own layout.">
+          <SectionCard title="Appearance" description="Choose your accent colour and overall feel.">
             <AppearanceSettings />
           </SectionCard>
 

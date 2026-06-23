@@ -7,6 +7,13 @@ import NotificationBell from './NotificationBell';
 
 const THEME_CYCLE = ['light', 'dark', 'system'];
 
+// Mirror of the avatar colour presets in Settings, so a chosen colour avatar
+// renders identically in the navbar.
+const AVATAR_COLORS = {
+  indigo: '#4338ca', emerald: '#059669', amber: '#d97706',
+  rose: '#e11d48', sky: '#0284c7', violet: '#7c3aed',
+};
+
 const ICONS = {
   sun: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
@@ -109,10 +116,15 @@ function Navbar() {
           <NotificationBell />
           <Link
             to="/app/settings"
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-bg-subtle text-xs font-semibold text-ink"
+            className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-bg-subtle text-xs font-semibold text-ink"
             title={user?.email || 'Account'}
+            style={user?.avatar_preset && !user?.avatar_url ? { backgroundColor: AVATAR_COLORS[user.avatar_preset] || undefined, color: '#fff' } : undefined}
           >
-            {initials}
+            {user?.avatar_url ? (
+              <img src={user.avatar_url} alt="" className="h-full w-full object-cover" />
+            ) : (
+              initials
+            )}
           </Link>
           <button
             type="button"

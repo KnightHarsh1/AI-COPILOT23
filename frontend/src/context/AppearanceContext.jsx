@@ -9,8 +9,27 @@ const PRESETS_KEY = "appearance_presets_v1";
 // Every appearance choice lives here. Defaults reproduce the current
 // ("Classic") dashboard exactly, so an upgraded build looks identical until
 // the user opts into something else.
+// Ten curated accent shades. Each sets the primary colour (and its hover) used
+// across buttons, links, highlights, and active states. `primary` / `hover` are
+// "R G B" triples matching the --c-primary CSS variable format. `swatch` is a
+// ready CSS colour for the selection square shown in Settings.
+export const ACCENT_THEMES = [
+  { id: "indigo",   label: "Indigo",      primary: "99 102 241",  hover: "129 140 248", swatch: "rgb(99 102 241)" },
+  { id: "violet",   label: "Violet",      primary: "139 92 246",  hover: "167 139 250", swatch: "rgb(139 92 246)" },
+  { id: "blue",     label: "Ocean Blue",  primary: "59 130 246",  hover: "96 165 250",  swatch: "rgb(59 130 246)" },
+  { id: "teal",     label: "Teal",        primary: "20 184 166",  hover: "45 212 191",  swatch: "rgb(20 184 166)" },
+  { id: "emerald",  label: "Emerald",     primary: "16 185 129",  hover: "52 211 153",  swatch: "rgb(16 185 129)" },
+  { id: "amber",    label: "Amber Gold",  primary: "217 159 56",  hover: "234 179 88",  swatch: "rgb(217 159 56)" },
+  { id: "rose",     label: "Rose",        primary: "244 63 94",   hover: "251 113 133", swatch: "rgb(244 63 94)" },
+  { id: "crimson",  label: "Crimson",     primary: "225 72 72",   hover: "239 110 110", swatch: "rgb(225 72 72)" },
+  { id: "cyan",     label: "Cyan",        primary: "6 182 212",   hover: "34 211 238",  swatch: "rgb(6 182 212)" },
+  { id: "slate",    label: "Graphite",    primary: "100 116 139", hover: "148 163 184", swatch: "rgb(100 116 139)" },
+];
+const ACCENT_BY_ID = ACCENT_THEMES.reduce((m, a) => ((m[a.id] = a), m), {});
+
 export const DEFAULT_APPEARANCE = {
   dashboardTheme: "classic",      // classic | modern | executive | finance | command
+  accentTheme: "indigo",          // accent colour shade (see ACCENT_THEMES)
   customMode: false,              // when true, individual component picks below win
   kpiStyle: "classic",            // classic | sparklines | glass | executive | command
   mainChart: "classic",           // classic | gradientArea | stacked | executiveTrend | forecast | waterfall
@@ -26,6 +45,7 @@ export const DEFAULT_APPEARANCE = {
 
 const VALID = {
   dashboardTheme: ["classic", "modern", "executive", "finance", "command"],
+  accentTheme: ACCENT_THEMES.map((a) => a.id),
   kpiStyle: ["classic", "sparklines", "glass", "executive", "command"],
   mainChart: ["classic", "gradientArea", "stacked", "executiveTrend", "forecast", "waterfall"],
   healthStyle: ["classic", "ring", "gauge", "shield", "orb", "credit"],
@@ -82,6 +102,18 @@ export function AppearanceProvider({ children }) {
     root.setAttribute("data-density", appearance.density);
     root.setAttribute("data-animations", appearance.animationLevel);
   }, [appearance.density, appearance.animationLevel]);
+
+  // Apply the chosen accent shade by overriding the primary CSS variables.
+  // Falls back to the default indigo when an unknown id is stored.
+  useEffect(() => {
+    const root = document.documentElement;
+    const accent = ACCENT_BY_ID[appearance.accentTheme] || ACCENT_BY_ID.indigo;
+    if (accent) {
+      root.style.setProperty("--c-primary", accent.primary);
+      root.style.setProperty("--c-primary-hover", accent.hover);
+      root.style.setProperty("--c-sidebar-active", accent.hover);
+    }
+  }, [appearance.accentTheme]);
 
   // Seed from the account's saved appearance on a fresh browser only.
   useEffect(() => {

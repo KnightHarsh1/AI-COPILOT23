@@ -42,7 +42,7 @@ function StatCard({ label, value, isCurrency = true, trend, accent, icon, showNe
         </p>
       ) : (
         showNewBadge && (
-          <p className="mt-2 text-sm font-medium text-ink-muted">New · needs 2+ periods to trend</p>
+          <p className="mt-2 text-sm font-medium text-ink-muted">Awaiting comparison period</p>
         )
       )}
     </div>

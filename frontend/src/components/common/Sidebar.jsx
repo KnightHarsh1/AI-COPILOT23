@@ -1,95 +1,215 @@
 import { useEffect, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { navItems } from '../../constants/nav';
-import DashboardService from '../../services/dashboardService';
+import { useLocation, useNavigate } from 'react-router-dom';
+import CommandCenterService from '../../services/commandCenterService';
+import { LEVELS, LEVEL_BY_ID, classifyActions } from '../command/attentionEngine';
+import { formatCurrency } from '../../utils/formatters';
 
-function Sidebar() {
-  const { pathname } = useLocation();
-  const [pulse, setPulse] = useState(null);
-  const [error, setError] = useState(false);
+// Hierarchical, accordion-style navigation groups. Each top-level group expands
+// to reveal submenu items that navigate (and, for Command Center, switch the
+// dashboard tab via ?tab= + smooth scroll to the section).
+const NAV_GROUPS = [
+  {
+    label: 'Command Center', path: '/app/dashboard',
+    children: [
+      { label: 'Today', tab: 'today', section: 'today-section' },
+      { label: 'Risks & Opportunities', tab: 'risks' },
+      { label: 'Daily Actions', tab: 'actions' },
+      { label: 'Intelligence', tab: 'intelligence', section: 'intelligence-section' },
+      { label: 'Customer Intelligence', tab: 'intelligence', intel: 'customer', sub: true },
+      { label: 'Inventory Intelligence', tab: 'intelligence', intel: 'product', sub: true },
+      { label: 'Cash Flow Intelligence', tab: 'intelligence', intel: 'cashflow', sub: true },
+      { label: 'Financial Position', tab: 'intelligence', intel: 'financial', sub: true },
+      { label: 'Profitability (P&L)', tab: 'intelligence', intel: 'profit', sub: true },
+      { label: 'Collections Intelligence', tab: 'intelligence', intel: 'collections', sub: true },
+      { label: 'Compliance Intelligence', tab: 'intelligence', intel: 'compliance', sub: true },
+      { label: 'GST Intelligence', tab: 'intelligence', intel: 'gst', sub: true },
+      { label: 'Opportunity Intelligence', tab: 'intelligence', intel: 'opportunity', sub: true },
+      { label: 'Market Radar', tab: 'intelligence', intel: 'market', sub: true },
+      { label: 'Goals & Trends', tab: 'goals' },
+    ],
+  },
+  {
+    label: 'Data Center', path: '/app/data-center',
+    children: [
+      { label: 'Upload Center', q: 'tab=import' },
+      { label: 'Import History', q: 'tab=history' },
+      { label: 'Data Coverage', q: 'tab=coverage' },
+      { label: 'Data Freshness', q: 'tab=freshness' },
+      { label: 'Data Dictionary', q: 'tab=dictionary' },
+    ],
+  },
+  {
+    label: 'Reports', path: '/app/reports',
+    children: [
+      { label: 'Executive Summary' },
+      { label: 'Financial Report' },
+      { label: 'Cash Flow Report' },
+      { label: 'Export Center' },
+    ],
+  },
+  {
+    label: 'AI CFO', path: '/app/chat',
+    children: [
+      { label: 'Ask AI CFO' },
+      { label: 'Business Briefing' },
+      { label: 'Forecasts', path: '/app/forecast' },
+    ],
+  },
+  {
+    label: 'Settings', path: '/app/settings',
+    children: [
+      { label: 'Company Profile' },
+      { label: 'Notifications' },
+      { label: 'Users & Roles' },
+      { label: 'Preferences' },
+    ],
+  },
+];
 
-  useEffect(() => {
-    let isMounted = true;
+function Chevron({ open }) {
+  return (
+    <svg viewBox="0 0 20 20" className="h-4 w-4 transition-transform duration-300" style={{ transform: open ? 'rotate(90deg)' : 'none' }} fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M7 5l6 5-6 5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
-    DashboardService.getSummary()
-      .then((data) => {
-        if (isMounted) setPulse(data);
-      })
-      .catch(() => {
-        if (isMounted) setError(true);
-      });
+function AttentionMeterMini({ result, navigate }) {
+  const { counts, overall, impactAtRisk } = result;
+  const overallLevel = LEVEL_BY_ID[overall];
+  const totalActive = counts.critical + counts.action + counts.watch + counts.normal;
 
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  const healthLabel = (score) => {
-    if (score >= 85) return { text: 'Excellent', tone: 'text-risk-low' };
-    if (score >= 70) return { text: 'Healthy', tone: 'text-risk-low' };
-    if (score >= 55) return { text: 'Watch closely', tone: 'text-risk-medium' };
-    return { text: 'At risk', tone: 'text-risk-high' };
-  };
+  const go = (level) => navigate(`/app/dashboard?tab=actions&level=${level}`);
 
   return (
-    <aside className="hidden w-full max-w-xs shrink-0 rounded-card bg-sidebar-bg p-6 text-sidebar-ink lg:block">
-      <div className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sidebar-muted">Workspace</p>
-        <h2 className="font-display text-2xl font-semibold text-white">Executive summary</h2>
-        <p className="text-sm leading-6 text-sidebar-muted">
-          A quick view of your company performance, alerts, and recommended actions.
-        </p>
+    <div className="mt-8 rounded-xl border border-white/10 bg-white/5 p-4">
+      <p className="text-sm font-semibold text-white">Business attention</p>
+      <p className="mt-0.5 text-[11px] text-sidebar-muted">What needs attention right now</p>
+
+      {/* Overall status */}
+      <div className="mt-3 rounded-lg bg-black/20 px-3 py-2.5">
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-sidebar-muted">Overall status</p>
+        <p className={`mt-0.5 text-sm font-bold ${overallLevel.text}`}>{overallLevel.emoji} {overallLevel.label}</p>
+        {impactAtRisk > 0 && <p className="figure mt-1 text-sm font-bold text-risk-high">{formatCurrency(impactAtRisk)} at risk</p>}
       </div>
 
-      <div className="mt-10 space-y-1">
-        {navItems.map((item) => {
-          const isActive = pathname === item.path;
+      {/* Levels — whole row clickable */}
+      <div className="mt-3 space-y-1.5">
+        {LEVELS.map((lvl) => {
+          const count = counts[lvl.id];
           return (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`block rounded-xl px-4 py-3 text-sm font-medium transition ${
-                isActive
-                  ? 'bg-sidebar-active text-white shadow-sm'
-                  : 'text-sidebar-ink hover:bg-white/5'
-              }`}
+            <button
+              key={lvl.id}
+              type="button"
+              onClick={() => go(lvl.id)}
+              title={`${lvl.label}: ${count} item${count === 1 ? '' : 's'}`}
+              className="group flex w-full items-center justify-between rounded-lg border border-transparent px-3 py-2 text-sm transition hover:border-white/15 hover:bg-white/5"
             >
-              {item.label}
-            </Link>
+              <span className="flex items-center gap-2">
+                <span className={`h-2 w-2 rounded-full ${lvl.dot}`} />
+                <span className="text-sidebar-ink">{lvl.label}</span>
+              </span>
+              <span className="figure font-semibold text-white">{count}</span>
+            </button>
           );
         })}
       </div>
 
-      <div className="mt-10 rounded-xl border border-white/10 bg-white/5 p-5">
-        <p className="text-sm font-semibold text-white">Today&rsquo;s pulse</p>
-
-        {error && (
-          <p className="mt-3 text-xs text-sidebar-muted">Couldn&rsquo;t load live data right now.</p>
-        )}
-
-        {!error && (
-          <dl className="mt-4 space-y-3 text-sm text-sidebar-muted">
-            <div className="flex items-center justify-between">
-              <dt>Open alerts</dt>
-              <dd className="figure font-semibold text-white">
-                {pulse ? pulse.open_alerts : '—'}
-              </dd>
-            </div>
-            <div className="flex items-center justify-between">
-              <dt>Open recommendations</dt>
-              <dd className="figure font-semibold text-white">
-                {pulse ? pulse.open_recommendations : '—'}
-              </dd>
-            </div>
-            <div className="flex items-center justify-between">
-              <dt>Health score</dt>
-              <dd className={`figure font-semibold ${pulse ? healthLabel(pulse.health_score).tone : 'text-white'}`}>
-                {pulse ? `${Math.round(pulse.health_score)} · ${healthLabel(pulse.health_score).text}` : '—'}
-              </dd>
-            </div>
-          </dl>
-        )}
+      <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-3 text-[11px] text-sidebar-muted">
+        <span>Total active: <span className="figure font-semibold text-white">{totalActive}</span></span>
+        {impactAtRisk > 0 && <span className="figure font-semibold text-white">{formatCurrency(impactAtRisk)}</span>}
       </div>
+    </div>
+  );
+}
+
+function Sidebar() {
+  const { pathname, search } = useLocation();
+  const navigate = useNavigate();
+  const activeIntel = new URLSearchParams(search).get('intel');
+  const [data, setData] = useState(null);
+  const [openGroup, setOpenGroup] = useState(() => {
+    const active = NAV_GROUPS.find((g) => pathname.startsWith(g.path));
+    return active ? active.label : 'Command Center';
+  });
+
+  useEffect(() => {
+    let mounted = true;
+    CommandCenterService.getCommandCenter()
+      .then((d) => { if (mounted) setData(d); })
+      .catch(() => {});
+    return () => { mounted = false; };
+  }, []);
+
+  const goSubmenu = (group, child) => {
+    if (child.path) { navigate(child.path); return; }
+    if (group.path === '/app/dashboard' && child.tab) {
+      const q = child.intel ? `?tab=${child.tab}&intel=${child.intel}` : `?tab=${child.tab}`;
+      navigate(`/app/dashboard${q}`);
+      const target = child.section || (child.intel ? 'intelligence-section' : null);
+      if (target && typeof document !== 'undefined') {
+        setTimeout(() => {
+          const el = document.getElementById(target);
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 80);
+      }
+      return;
+    }
+    const q = child.q ? `?${child.q}` : '';
+    navigate(`${group.path}${q}`);
+  };
+
+  const result = classifyActions(data?.action_center);
+
+  return (
+    <aside className="hidden w-full max-w-xs shrink-0 rounded-card bg-sidebar-bg p-6 text-sidebar-ink lg:block">
+      <div className="space-y-1">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sidebar-muted">Workspace</p>
+        <h2 className="font-display text-xl font-semibold text-white">Navigation</h2>
+      </div>
+
+      {/* Accordion nav */}
+      <nav className="mt-6 space-y-1">
+        {NAV_GROUPS.map((group) => {
+          const groupActive = pathname.startsWith(group.path);
+          const expanded = openGroup === group.label;
+          return (
+            <div key={group.label}>
+              <button
+                type="button"
+                onClick={() => { setOpenGroup(expanded ? null : group.label); if (!groupActive) navigate(group.path); }}
+                className={`flex w-full items-center justify-between rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+                  groupActive ? 'bg-sidebar-active text-white shadow-sm' : 'text-sidebar-ink hover:bg-white/5'
+                }`}
+              >
+                <span>{group.label}</span>
+                <Chevron open={expanded} />
+              </button>
+
+              <div className="overflow-hidden transition-all duration-300 ease-out" style={{ maxHeight: expanded ? `${group.children.length * 38 + 12}px` : '0px', opacity: expanded ? 1 : 0 }}>
+                <div className="ml-3 mt-1 space-y-0.5 border-l border-white/10 pl-3">
+                  {group.children.map((child) => {
+                    const isActiveIntel = child.intel && activeIntel === child.intel && pathname.startsWith('/app/dashboard');
+                    return (
+                      <button
+                        key={child.label}
+                        type="button"
+                        onClick={() => goSubmenu(group, child)}
+                        className={`block w-full rounded-lg px-3 py-1.5 text-left font-medium transition hover:bg-white/5 hover:text-white ${child.sub ? 'pl-6 text-[12px]' : 'text-[13px]'} ${isActiveIntel ? 'bg-white/10 text-white' : 'text-sidebar-muted'}`}
+                      >
+                        {child.sub && <span className="mr-1.5 text-white/30">·</span>}{child.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </nav>
+
+      {/* Business Attention Meter — replaces Today's Pulse */}
+      <AttentionMeterMini result={result} navigate={navigate} />
     </aside>
   );
 }

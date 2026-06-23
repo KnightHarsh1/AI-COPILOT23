@@ -1,4 +1,5 @@
 import { formatCurrency } from "../../utils/formatters";
+import SourceBadge from "../common/SourceBadge";
 
 // Profitability Intelligence widget — renders only when a P&L statement has
 // been uploaded (data.profitability.available). All figures live from
@@ -31,7 +32,10 @@ function ProfitabilityCard({ profitability }) {
   return (
     <section className="rounded-card border border-border bg-surface p-6 shadow-card">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-display text-lg font-semibold text-ink">Profitability (P&amp;L)</h2>
+        <div className="flex items-center gap-2">
+          <h2 className="font-display text-lg font-semibold text-ink">Profitability (P&amp;L)</h2>
+          <SourceBadge source="P&L Statement" updated={k.statement_date} confidence={96} />
+        </div>
         {k.statement_date && <span className="text-xs text-ink-muted">As of {k.statement_date}</span>}
       </div>
 

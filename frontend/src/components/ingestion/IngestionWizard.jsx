@@ -5,7 +5,7 @@ import MappingReviewTable from './MappingReviewTable';
 import { ProfilingPanel, AIUnderstandingPanel, ReadinessPanel } from './ImportInsightsPanels';
 import ImportImpactReport from './ImportImpactReport';
 import { ingestionService } from '../../services/ingestionService';
-import { formatNumber } from '../../utils/formatters';
+import { formatNumber, formatConfidencePct } from '../../utils/formatters';
 
 const ACCEPTED_TYPES = ['.csv', '.xlsx', '.xls', '.xml', '.pdf', '.png', '.jpg', '.jpeg'];
 
@@ -214,7 +214,7 @@ function IngestionWizard({ onComplete }) {
 
   // review | confirming
   const typeLabel = DOCUMENT_TYPE_LABELS[analyzeResult?.document_type] || analyzeResult?.document_type;
-  const confidence = Math.round(analyzeResult?.detection_confidence || 0);
+  const confidence = formatConfidencePct(analyzeResult?.detection_confidence);
   const autoMappedCount = mapping.filter((s) => s.suggested_field).length;
   const isMemoryHit = mapping.length > 0 && mapping[0]?.source === 'memory';
 

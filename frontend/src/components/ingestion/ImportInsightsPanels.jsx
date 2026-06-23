@@ -3,6 +3,8 @@
 // data. Rendered above the mapping table so the owner understands the file
 // before mapping/importing it.
 
+import { formatConfidencePct, confidenceTier } from "../../utils/formatters";
+
 function Stat({ label, value, tone }) {
   return (
     <div className="rounded-xl border border-border bg-bg-subtle px-4 py-3">
@@ -48,7 +50,7 @@ export function ProfilingPanel({ profiling }) {
 
 export function AIUnderstandingPanel({ documentType, confidence, mapping }) {
   if (!documentType) return null;
-  const pct = Math.round((confidence || 0) * 100);
+  const pct = formatConfidencePct(confidence);
   const mappedFields = new Set((mapping || []).map((m) => m.suggested_field).filter(Boolean));
 
   const TYPE_LABELS = {
@@ -74,7 +76,7 @@ export function AIUnderstandingPanel({ documentType, confidence, mapping }) {
       <div className="flex items-center gap-2">
         <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary">AI</span>
         <h3 className="font-display text-base font-semibold text-ink">I analysed this file</h3>
-        <span className={`ml-auto figure text-sm font-bold ${tone}`}>{pct}% confident</span>
+        <span className={`ml-auto figure text-sm font-bold ${tone}`}>{confidenceTier(pct).emoji} {pct}% confident</span>
       </div>
       <div className="mt-3 flex flex-wrap gap-x-8 gap-y-3 text-sm">
         <div>

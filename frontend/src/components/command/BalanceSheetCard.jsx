@@ -1,4 +1,5 @@
 import { formatCurrency } from "../../utils/formatters";
+import SourceBadge from "../common/SourceBadge";
 
 // Shows balance-sheet KPIs + insights on the Command Center. Renders only when
 // a balance sheet has been uploaded (data.balance_sheet.available). All values
@@ -32,7 +33,10 @@ function BalanceSheetCard({ balanceSheet }) {
   return (
     <section className="rounded-card border border-border bg-surface p-6 shadow-card">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-display text-lg font-semibold text-ink">Financial position</h2>
+        <div className="flex items-center gap-2">
+          <h2 className="font-display text-lg font-semibold text-ink">Financial position</h2>
+          <SourceBadge source="Balance Sheet" updated={k.statement_date} confidence={97} />
+        </div>
         {k.statement_date && <span className="text-xs text-ink-muted">As of {k.statement_date}</span>}
       </div>
 

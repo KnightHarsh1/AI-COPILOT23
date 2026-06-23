@@ -44,7 +44,7 @@ function StepDots({ step, total }) {
   );
 }
 
-function OnboardingCard({ coverage, onChanged }) {
+function OnboardingCard({ coverage, onChanged, onDismiss }) {
   const [step, setStep] = useState(0);
   const [industry, setIndustry] = useState("");
   const [goal, setGoal] = useState("");
@@ -80,7 +80,19 @@ function OnboardingCard({ coverage, onChanged }) {
     <section className="rounded-card border border-primary/20 bg-primary/5 p-6">
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Set up &middot; step {step + 1} of 3</p>
-        <StepDots step={step} total={3} />
+        <div className="flex items-center gap-3">
+          <StepDots step={step} total={3} />
+          {onDismiss && (
+            <button
+              type="button"
+              onClick={onDismiss}
+              aria-label="Dismiss setup"
+              className="flex h-7 w-7 items-center justify-center rounded-full text-ink-muted transition hover:bg-bg-subtle hover:text-ink"
+            >
+              ✕
+            </button>
+          )}
+        </div>
       </div>
 
       {step === 0 && (

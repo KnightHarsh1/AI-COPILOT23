@@ -82,3 +82,22 @@ export function formatFileSize(bytes) {
   if (kb < 1024) return `${kb.toFixed(0)} KB`;
   return `${(kb / 1024).toFixed(1)} MB`;
 }
+
+// Normalize a confidence value to a 0-100 percentage integer, regardless of
+// whether the source gave a decimal (0.9167) or an already-scaled percentage
+// (91.67 or 95). Prevents the double-multiply "9167%" bug. Always clamped to
+// 0-100 so a confidence can never display above 100%.
+export function formatConfidencePct(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  // <= 1 means it's a decimal fraction; otherwise it's already a percentage.
+  const pct = n <= 1 ? n * 100 : n;
+  return Math.max(0, Math.min(100, Math.round(pct)));
+}
+
+// A friendly confidence label tier for UI.
+export function confidenceTier(pct) {
+  if (pct >= 80) return { label: 'High confidence', emoji: '🟢' };
+  if (pct >= 60) return { label: 'Moderate confidence', emoji: '🟡' };
+  return { label: 'Low confidence', emoji: '🔴' };
+}
