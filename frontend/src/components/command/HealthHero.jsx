@@ -33,24 +33,36 @@ function HealthHero({ health, healthStyle }) {
           value={h.revenue}
           trend={h.growth_rate}
           icon={<IconRupee />}
+          sparkColor="rgb(var(--c-primary))"
+          sparkUp={(h.growth_rate ?? 1) >= 0}
+          seed={2}
         />
         <StatCard
           label="Net profit (30d)"
           value={h.net_profit}
           accent={h.net_profit >= 0 ? "text-risk-low" : "text-risk-high"}
           icon={<IconTrend />}
+          sparkColor="rgb(var(--c-risk-low))"
+          sparkUp={(h.net_profit ?? 0) >= 0}
+          seed={5}
         />
         <StatCard
           label="Receivables"
           value={h.outstanding_receivables != null ? h.outstanding_receivables : 0}
           icon={<IconClock />}
           showNewBadge={false}
+          sparkColor="rgb(var(--c-gold))"
+          sparkUp
+          seed={8}
         />
         <StatCard
           label="Cash position"
           value={h.cash_position != null ? h.cash_position : 0}
           icon={<IconCash />}
           showNewBadge={false}
+          sparkColor="rgb(var(--c-primary))"
+          sparkUp
+          seed={11}
         />
         <StatCard
           label="Working capital"
@@ -58,12 +70,18 @@ function HealthHero({ health, healthStyle }) {
           accent={h.working_capital != null && h.working_capital < 0 ? "text-risk-high" : undefined}
           icon={<IconScale />}
           showNewBadge={false}
+          sparkColor="rgb(var(--c-primary))"
+          sparkUp={(h.working_capital ?? 0) >= 0}
+          seed={14}
         />
         <StatCard
           label="Expenses (30d)"
           value={h.expenses}
           icon={<IconCard />}
           showNewBadge={false}
+          sparkColor="rgb(var(--c-gold))"
+          sparkUp={false}
+          seed={17}
         />
       </div>
 

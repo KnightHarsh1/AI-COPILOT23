@@ -34,7 +34,6 @@ import RisksOpportunities from "../components/command/RisksOpportunities";
 import HealthScoreExplainer from "../components/command/HealthScoreExplainer";
 import MoneySummaryBar from "../components/command/MoneySummaryBar";
 import DailyActionsPanel from "../components/command/DailyActionsPanel";
-import SetupPill from "../components/common/SetupPill";
 import IntelligenceHub from "../components/command/IntelligenceHub";
 import DashboardSkeleton from "../components/common/DashboardSkeleton";
 import InsightTimeline from "../components/command/InsightTimeline";
@@ -74,7 +73,10 @@ function CommandCenterPage() {
     if (typeof window === "undefined") return null;
     return new URLSearchParams(window.location.search).get("intel");
   });
-  const [reopenedOnboarding, setReopenedOnboarding] = useState(false);
+  const [reopenedOnboarding, setReopenedOnboarding] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return new URLSearchParams(window.location.search).get("setup") === "1";
+  });
 
   const dismissOnboarding = useCallback(() => {
     setReopenedOnboarding(false);
@@ -121,6 +123,7 @@ function CommandCenterPage() {
     const lvl = params.get("level");
     if (t && ["today", "risks", "actions", "intelligence", "goals"].includes(t)) setTab(t);
     if (lvl) setActionLevel(lvl);
+    if (params.get("setup") === "1") { setTab("today"); setReopenedOnboarding(true); }
     const intel = params.get("intel");
     if (intel) { setIntelCategory(intel); setTab("intelligence"); }
   }, [_loc.search]);
@@ -175,16 +178,8 @@ function CommandCenterPage() {
 
           {!loading && data && (
             <>
-              {/* Compact setup pill at the very top — no large onboarding
-                  banner occupies the dashboard body. Reopenable any time. */}
-              {incomplete && (
-                <div className="flex items-center justify-between">
-                  <SetupPill coverage={data.coverage} onContinue={reopenOnboarding} />
-                </div>
-              )}
-
               {/* Onboarding card only shows when the user explicitly reopens it
-                  via the pill. By default it stays out of the body. */}
+                  via the navbar setup pill. By default it stays out of the body. */}
               {incomplete && reopenedOnboarding && (
                 <OnboardingCard coverage={data.coverage} onChanged={load} onDismiss={dismissOnboarding} />
               )}

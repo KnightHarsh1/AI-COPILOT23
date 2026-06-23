@@ -53,6 +53,13 @@ const SIDEBAR_OPTS = [
   { value: "compact", label: "Compact" },
   { value: "auto", label: "Auto Collapse" },
 ];
+const ROTATION_OPTS = [
+  { value: 5000, label: "5s" },
+  { value: 7000, label: "7s" },
+  { value: 10000, label: "10s" },
+  { value: 15000, label: "15s" },
+  { value: 0, label: "Off" },
+];
 
 function WidgetManager() {
   const { appearance, toggleWidget, setWidgetOrder, resetWidgets } = useAppearance();
@@ -176,6 +183,11 @@ function AppearanceSettings() {
       {/* Density + Sidebar */}
       <Row label="Dashboard density"><Chips value={a.density} onChange={(v) => update({ density: v })} options={DENSITY_OPTS} /></Row>
       <Row label="Sidebar mode" hint="Expanded shows labels; Compact shows icons; Auto collapses on smaller screens."><Chips value={a.sidebarMode} onChange={(v) => update({ sidebarMode: v })} options={SIDEBAR_OPTS} /></Row>
+
+      {/* Carousel auto-rotate speed */}
+      <Row label="Hero carousel auto-rotate" hint="How fast the Executive Brief / AI CFO / Business Attention hero rotates.">
+        <Chips value={a.carouselRotationMs} onChange={(v) => update({ carouselRotationMs: v })} options={ROTATION_OPTS} />
+      </Row>
 
       {/* Widget Manager */}
       <Row label="Dashboard widgets" hint="Show, hide, and reorder the Today dashboard sections.">

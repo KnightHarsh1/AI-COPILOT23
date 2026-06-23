@@ -6,6 +6,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { navItems } from '../../constants/nav';
 import { NAV_ICONS } from './navIcons';
 import NotificationBell from './NotificationBell';
+import NavbarSetupPill from './NavbarSetupPill';
 import FloatingAssistant from './FloatingAssistant';
 import MotionBackground from './MotionBackground';
 
@@ -97,6 +98,7 @@ function Navbar() {
           >
             {ICONS[theme]}
           </button>
+          <NavbarSetupPill />
           <NotificationBell />
           <Link
             to="/app/settings"

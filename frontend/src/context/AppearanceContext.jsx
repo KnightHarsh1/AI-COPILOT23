@@ -80,6 +80,7 @@ export const DEFAULT_APPEARANCE = {
   theme: "midnight",              // full theme palette (see THEMES)
   fontFamily: "jakarta",          // Plus Jakarta Sans default (Executive Neon)
   sidebarMode: "expanded",        // expanded | compact | auto
+  carouselRotationMs: 7000,       // hero carousel auto-rotate interval (0 = off)
   widgetOrder: DEFAULT_WIDGET_ORDER,
   hiddenWidgets: [],              // ids of widgets the user has hidden
   dashboardTheme: "classic",      // classic | modern | executive | finance | command
@@ -101,6 +102,7 @@ const VALID = {
   theme: THEMES.map((t) => t.id),
   fontFamily: FONTS.map((f) => f.id),
   sidebarMode: ["expanded", "compact", "auto"],
+  carouselRotationMs: [0, 5000, 7000, 10000, 15000],
   dashboardTheme: ["classic", "modern", "executive", "finance", "command"],
   accentTheme: ACCENT_THEMES.map((a) => a.id),
   kpiStyle: ["classic", "sparklines", "glass", "executive", "command"],

@@ -1,11 +1,12 @@
 import { formatCurrency } from "../../utils/formatters";
 import useCountUp from "../../hooks/useCountUp";
+import Sparkline from "./Sparkline";
 
 // Executive KPI card — premium presentation layer. Business-critical numbers are
 // NEVER truncated or hidden; the full Indian-format value is always shown. Adds
-// count-up animation, hover lift, a glow border, and a hover-revealed detail
-// row (growth %, previous period). None of this touches the underlying value or
-// any KPI calculation — it's purely how the same number is displayed.
+// count-up animation, hover lift, glow border, a hover-revealed trend row, and a
+// sparkline trend line (bottom-right, like the reference). None of this touches
+// the underlying value or any KPI calculation — purely how the number displays.
 function fontSizeForLength(text) {
   const len = String(text).length;
   if (len <= 9) return "text-3xl";
@@ -14,7 +15,11 @@ function fontSizeForLength(text) {
   return "text-lg";
 }
 
-function StatCard({ label, value, isCurrency = true, trend, accent, icon, showNewBadge = true, animate = true }) {
+function StatCard({
+  label, value, isCurrency = true, trend, accent, icon,
+  showNewBadge = true, animate = true,
+  sparkData, sparkColor = "rgb(var(--c-primary))", sparkUp = true, seed = 1,
+}) {
   const numericValue = typeof value === "number" ? value : Number(value) || 0;
   const animated = useCountUp(numericValue, { enabled: animate && isCurrency && Math.abs(numericValue) > 0 });
   const shown = animate && isCurrency ? animated : numericValue;
@@ -35,12 +40,18 @@ function StatCard({ label, value, isCurrency = true, trend, accent, icon, showNe
         )}
       </div>
 
-      <p
-        className={`figure relative mt-3 font-bold leading-tight ${sizeClass} ${accent || "text-ink"}`}
-        style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}
-      >
-        {display}
-      </p>
+      {/* Value + sparkline row */}
+      <div className="relative mt-3 flex items-end justify-between gap-3">
+        <p
+          className={`figure font-bold leading-tight ${sizeClass} ${accent || "text-ink"}`}
+          style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}
+        >
+          {display}
+        </p>
+        <div className="shrink-0 opacity-90 transition-opacity duration-300 group-hover:opacity-100">
+          <Sparkline data={sparkData} color={sparkColor} up={sparkUp} seed={seed} width={96} height={36} />
+        </div>
+      </div>
 
       <div className="relative mt-2 min-h-[1.25rem]">
         {trend != null ? (

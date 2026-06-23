@@ -5,6 +5,8 @@ import {
   Play, Pause, CheckCircle2,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useAppearance } from "../../context/AppearanceContext";
+import GreetingRobot from "./GreetingRobot";
 import { formatCurrency } from "../../utils/formatters";
 import { LEVELS, classifyActions } from "./attentionEngine";
 
@@ -16,14 +18,6 @@ import { LEVELS, classifyActions } from "./attentionEngine";
 
 const RISK_CATS = new Set(["collections", "liquidity_risk", "working_capital", "debt_risk", "cash_flow_risk", "customer_risk", "profitability", "market_risk", "inventory_risk", "reconciliation", "compliance"]);
 const OPP_CATS = new Set(["opportunity", "market_opportunity"]);
-
-const ROTATION_OPTIONS = [
-  { label: "5s", ms: 5000 },
-  { label: "7s", ms: 7000 },
-  { label: "10s", ms: 10000 },
-  { label: "15s", ms: 15000 },
-  { label: "Off", ms: 0 },
-];
 
 function greeting() {
   const h = new Date().getHours();
@@ -172,9 +166,10 @@ const SLIDES = [
 
 function ExecutiveCarousel({ data, user, brief }) {
   const navigate = useNavigate();
+  const { appearance } = useAppearance();
+  const rotationMs = appearance.carouselRotationMs ?? 7000;
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(true);
-  const [rotationMs, setRotationMs] = useState(7000);
   const [hovered, setHovered] = useState(false);
   const [dir, setDir] = useState(1);
   const timerRef = useRef(null);
@@ -214,13 +209,16 @@ function ExecutiveCarousel({ data, user, brief }) {
       <div aria-hidden className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full opacity-30 blur-3xl" style={{ background: "radial-gradient(circle, rgb(var(--c-primary)), transparent 70%)" }} />
       <div aria-hidden className="pointer-events-none absolute -bottom-24 left-10 h-56 w-56 rounded-full opacity-20 blur-3xl" style={{ background: "radial-gradient(circle, rgb(var(--c-gold)), transparent 70%)" }} />
 
-      <div className="relative z-10 p-6 sm:p-7">
+      <div className="relative z-10 p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">{todayLabel()}</p>
-            <h1 className="font-display mt-1 flex items-center gap-2 text-2xl font-bold text-ink sm:text-3xl">
-              {greeting()}{user?.first_name ? `, ${user.first_name}` : ""} <span className="text-2xl">👋</span>
-            </h1>
+          <div className="flex min-w-0 items-center gap-3">
+            <GreetingRobot size={84} />
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">{todayLabel()}</p>
+              <h1 className="font-display mt-1 flex items-center gap-2 text-2xl font-bold text-ink sm:text-3xl">
+                {greeting()}{user?.first_name ? `, ${user.first_name}` : ""} <span className="text-2xl">👋</span>
+              </h1>
+            </div>
           </div>
 
           <div className="flex items-center gap-3">
@@ -257,7 +255,7 @@ function ExecutiveCarousel({ data, user, brief }) {
           <Sparkles size={15} className="ml-auto text-primary" />
         </div>
 
-        <div className="relative mt-4 min-h-[160px]">
+        <div className="relative mt-3 min-h-[120px]">
           <AnimatePresence mode="wait" custom={dir}>
             <motion.div
               key={slide.id}
@@ -273,22 +271,6 @@ function ExecutiveCarousel({ data, user, brief }) {
               {slide.id === "attention" && <AttentionSlide data={data} />}
             </motion.div>
           </AnimatePresence>
-        </div>
-
-        <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-border pt-4">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-ink-muted">Auto-rotate</span>
-          {ROTATION_OPTIONS.map((opt) => (
-            <button
-              key={opt.label}
-              type="button"
-              onClick={() => setRotationMs(opt.ms)}
-              className={`rounded-pill px-2.5 py-1 text-xs font-semibold transition ${
-                rotationMs === opt.ms ? "bg-primary text-white" : "bg-bg-subtle text-ink-muted hover:text-ink"
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
         </div>
       </div>
     </motion.section>
