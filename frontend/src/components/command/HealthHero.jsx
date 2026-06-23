@@ -17,7 +17,7 @@ const COMPONENT_MAX = {
   customer_risk_score: 20,
 };
 
-function HealthHero({ health }) {
+function HealthHero({ health, healthStyle }) {
   const h = health || {};
   const components = h.components || {};
   const unavailable = new Set((h.components_unavailable || []).map((c) => c.component));

@@ -6,6 +6,7 @@
 // calculations. Animations are CSS-based (no framer-motion dependency).
 
 import { useState } from "react";
+import HealthScore from "../appearance/HealthScore";
 
 const COMPONENT_LABELS = {
   revenue_growth_score: { label: "Revenue growth", help: "How fast your sales are growing" },
@@ -32,7 +33,7 @@ function Bar({ value }) {
   );
 }
 
-function HealthScoreExplainer({ health, scoreChange }) {
+function HealthScoreExplainer({ health, scoreChange, healthStyle = "classic" }) {
   const [open, setOpen] = useState(false);
   if (!health || health.health_score == null) return null;
 
@@ -62,9 +63,13 @@ function HealthScoreExplainer({ health, scoreChange }) {
       <button type="button" onClick={() => setOpen((v) => !v)} className="block w-full p-6 text-left">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className={`relative flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl ${status.soft} transition group-hover:scale-105`}>
-              <span className={`figure text-2xl font-bold ${status.tone}`}>{score}</span>
-            </div>
+            {healthStyle && healthStyle !== "classic" ? (
+              <div className="shrink-0"><HealthScore score={score} style={healthStyle} /></div>
+            ) : (
+              <div className={`relative flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl ${status.soft} transition group-hover:scale-105`}>
+                <span className={`figure text-2xl font-bold ${status.tone}`}>{score}</span>
+              </div>
+            )}
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <h2 className="font-display text-base font-semibold text-ink">Business health</h2>

@@ -31,7 +31,7 @@ function BalanceSheetCard({ balanceSheet }) {
   const drTone = k.debt_ratio == null ? "text-ink" : k.debt_ratio <= 0.4 ? "text-risk-low" : k.debt_ratio <= 0.6 ? "text-gold" : "text-risk-high";
 
   return (
-    <section className="rounded-card border border-border bg-surface p-6 shadow-card">
+    <section className="rounded-card border border-border bg-surface p-6 shadow-card lift hover:border-primary/30 hover:shadow-card-hover">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <h2 className="font-display text-lg font-semibold text-ink">Financial position</h2>

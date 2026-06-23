@@ -64,7 +64,7 @@ function CustomerIntelligenceCard({ customers }) {
   const maxRev = d.top_customers?.length ? Math.max(...d.top_customers.map((c) => c.revenue)) : 0;
 
   return (
-    <section className="rounded-card border border-border bg-surface p-6 shadow-card">
+    <section className="rounded-card border border-border bg-surface p-6 shadow-card lift hover:border-primary/30 hover:shadow-card-hover">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="font-display text-lg font-semibold text-ink">Customer Intelligence</h2>

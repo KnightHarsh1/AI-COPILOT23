@@ -22,7 +22,7 @@ function GstCard({ gst }) {
   const maxTax = trend.length ? Math.max(...trend.map((t) => t.tax || 0)) : 0;
 
   return (
-    <section className="rounded-card border border-border bg-surface p-6 shadow-card">
+    <section className="rounded-card border border-border bg-surface p-6 shadow-card lift hover:border-primary/30 hover:shadow-card-hover">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="font-display text-lg font-semibold text-ink">GST Intelligence</h2>

@@ -30,7 +30,7 @@ function ProfitabilityCard({ profitability }) {
   const npTone = k.net_profit == null ? "text-ink" : k.net_profit >= 0 ? "text-risk-low" : "text-risk-high";
 
   return (
-    <section className="rounded-card border border-border bg-surface p-6 shadow-card">
+    <section className="rounded-card border border-border bg-surface p-6 shadow-card lift hover:border-primary/30 hover:shadow-card-hover">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <h2 className="font-display text-lg font-semibold text-ink">Profitability (P&amp;L)</h2>

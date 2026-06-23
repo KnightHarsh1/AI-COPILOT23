@@ -1,3 +1,4 @@
+import { motion } from "framer-motion";
 import { formatCurrency } from "../../utils/formatters";
 
 // CEO Briefing — the executive band that opens the Command Center. Answers, in
@@ -52,8 +53,16 @@ function CeoBriefing({ data, user, scoreChange }) {
   const scoreTone = score == null ? "text-ink" : score >= 70 ? "text-risk-low" : score >= 45 ? "text-gold" : "text-risk-high";
 
   return (
-    <section className="overflow-hidden rounded-card border border-border bg-gradient-to-br from-surface to-bg-subtle/40 shadow-card">
-      <div className="p-6 sm:p-7">
+    <motion.section
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+      className="neon-card neon-ring shine relative overflow-hidden rounded-card"
+    >
+      {/* Ambient neon glow blobs behind the hero content */}
+      <div aria-hidden className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full opacity-30 blur-3xl" style={{ background: "radial-gradient(circle, rgb(var(--c-primary)), transparent 70%)" }} />
+      <div aria-hidden className="pointer-events-none absolute -bottom-24 left-10 h-56 w-56 rounded-full opacity-20 blur-3xl" style={{ background: "radial-gradient(circle, rgb(var(--c-gold)), transparent 70%)" }} />
+      <div className="relative z-10 p-6 sm:p-7">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">{todayLabel()}</p>
@@ -109,7 +118,7 @@ function CeoBriefing({ data, user, scoreChange }) {
           </div>
         </div>
       </div>
-    </section>
+    </motion.section>
   );
 }
 

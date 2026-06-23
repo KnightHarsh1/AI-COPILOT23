@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
+import { motion } from "framer-motion";
+import { SECTION_ICONS } from "../components/common/navIcons";
 import { useAuth } from "../context/AuthContext";
 import { useAppearance } from "../context/AppearanceContext";
 import { resolveAppearance } from "../components/appearance/resolveAppearance";
@@ -34,6 +36,8 @@ import MoneySummaryBar from "../components/command/MoneySummaryBar";
 import DailyActionsPanel from "../components/command/DailyActionsPanel";
 import SetupPill from "../components/common/SetupPill";
 import IntelligenceHub from "../components/command/IntelligenceHub";
+import DashboardSkeleton from "../components/common/DashboardSkeleton";
+import InsightTimeline from "../components/command/InsightTimeline";
 import GrowthService from "../services/growthService";
 import ExpenseChart from "../components/common/charts/ExpenseChart";
 import HealthScoreChart from "../components/common/charts/HealthScoreChart";
@@ -158,11 +162,7 @@ function CommandCenterPage() {
             </section>
           )}
 
-          {loading && (
-            <div className="flex items-center justify-center rounded-card border border-border bg-surface p-12">
-              <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-            </div>
-          )}
+          {loading && <DashboardSkeleton />}
 
           {loadError && !loading && (
             <section className="rounded-card border border-risk-high/30 bg-risk-high/5 p-4 text-sm text-risk-high">
@@ -190,56 +190,69 @@ function CommandCenterPage() {
               <CeoBriefing data={data} user={user} scoreChange={scoreChange} />
 
               {/* 2. TAB NAVIGATION — directly below the greeting */}
-              <div id="dashboard-tabs" className="flex gap-1 overflow-x-auto rounded-pill border border-border bg-surface p-1">
-                {TABS.map((t) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => setTab(t.id)}
-                    className={`flex-1 whitespace-nowrap rounded-pill px-4 py-2 text-sm font-semibold transition ${
-                      tab === t.id ? "bg-primary text-white shadow-card" : "text-ink-muted hover:bg-bg-subtle hover:text-ink"
-                    }`}
-                  >
-                    {t.label}
-                  </button>
-                ))}
+              <div id="dashboard-tabs" className="glass-card flex gap-1 overflow-x-auto rounded-pill p-1.5">
+                {TABS.map((t) => {
+                  const Icon = SECTION_ICONS[t.id];
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setTab(t.id)}
+                      className={`flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-pill px-4 py-2 text-sm font-semibold transition-all duration-300 ${
+                        tab === t.id
+                          ? "bg-gradient-to-r from-primary to-primary-hover text-white tab-active-glow"
+                          : "text-ink-muted hover:bg-white/5 hover:text-ink"
+                      }`}
+                    >
+                      {Icon && <Icon size={15} strokeWidth={2} />}
+                      {t.label}
+                    </button>
+                  );
+                })}
               </div>
 
-              {tab === "today" && (
-                <div id="today-section" className="space-y-6">
-                  {/* 1. KPI ROW — Revenue / Profit / Receivables / Cash / WC / Expenses */}
-                  {ui.kpiStyle === "classic" ? (
-                    <HealthHero health={data.health} />
-                  ) : (
-                    <KpiGrid health={data.health} style={ui.kpiStyle} />
-                  )}
-
-                  {/* 2. MONEY SUMMARY BAR — at risk / to recover / opportunity */}
-                  <MoneySummaryBar
-                    actionCenter={data.action_center}
-                    collections={data.collections}
-                    opportunities={data.opportunities}
-                  />
-
-                  {/* 3. BUSINESS HEALTH */}
-                  <HealthScoreExplainer health={data.health} scoreChange={scoreChange} />
-
-                  {/* 4. CASH & WORKING CAPITAL (executive KPI strip only;
-                      detailed Financial Position and Profitability live in the
-                      Intelligence tab) */}
-                  <CashKpiStrip health={data.health} />
-
-                  {/* What changed + freshness */}
-                  <div className="grid gap-5 [&>*]:min-w-0 sm:grid-cols-2 [&>*:only-child]:sm:col-span-2">
-                    <ScoreChangeCard />
-                    <FreshnessBanner freshness={data.freshness} />
+              {tab === "today" && (() => {
+                // Build the widget map; render in the user's saved order,
+                // skipping any they've hidden. Each is a presentation block over
+                // the same data — no logic changes.
+                const widgetMap = {
+                  kpis: ui.kpiStyle === "classic"
+                    ? <HealthHero health={data.health} healthStyle={appearance.healthStyle} />
+                    : <KpiGrid health={data.health} style={ui.kpiStyle} />,
+                  money: <MoneySummaryBar actionCenter={data.action_center} collections={data.collections} opportunities={data.opportunities} />,
+                  health: <HealthScoreExplainer health={data.health} scoreChange={scoreChange} healthStyle={appearance.healthStyle} />,
+                  cash: <CashKpiStrip health={data.health} />,
+                  changes: (
+                    <div className="grid gap-5 [&>*]:min-w-0 sm:grid-cols-2 [&>*:only-child]:sm:col-span-2">
+                      <ScoreChangeCard />
+                      <FreshnessBanner freshness={data.freshness} />
+                    </div>
+                  ),
+                  aicfo: <><ProactiveBrief /><div className="mt-6"><AskBox /></div></>,
+                };
+                const hidden = new Set(appearance.hiddenWidgets || []);
+                const order = (appearance.widgetOrder || Object.keys(widgetMap)).filter((id) => widgetMap[id] && !hidden.has(id));
+                return (
+                  <div id="today-section" className="space-y-6">
+                    {order.map((id, i) => (
+                      <motion.div
+                        key={id}
+                        initial={{ opacity: 0, y: 14 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.5, delay: Math.min(i, 8) * 0.07, ease: [0.22, 1, 0.36, 1] }}
+                      >
+                        {widgetMap[id]}
+                      </motion.div>
+                    ))}
+                    {order.length === 0 && (
+                      <div className="rounded-card border border-border bg-surface p-10 text-center">
+                        <p className="font-display text-lg font-semibold text-ink">All widgets are hidden</p>
+                        <p className="mt-1 text-sm text-ink-muted">Re-enable widgets from Settings → Appearance → Dashboard widgets.</p>
+                      </div>
+                    )}
                   </div>
-
-                  {/* 5. AI CFO SAYS — the conclusion after reviewing all metrics */}
-                  <ProactiveBrief />
-                  <AskBox />
-                </div>
-              )}
+                );
+              })()}
 
               {tab === "risks" && (
                 <RisksOpportunities actionCenter={data.action_center} />
@@ -262,6 +275,8 @@ function CommandCenterPage() {
 
               {tab === "goals" && (
                 <div className="space-y-6">
+                  <InsightTimeline actionCenter={data.action_center} />
+
                   <GoalsBenchmark goals={data.goals} benchmark={data.benchmark} onChanged={load} />
 
                   <ChartFactory variant={ui.mainChart} health={data.health} />

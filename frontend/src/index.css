@@ -4,7 +4,11 @@
 
 :root {
   color-scheme: light;
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: var(--font-sans);
+
+  /* Selectable font stacks (Font Selector overrides these at runtime). */
+  --font-sans: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+  --font-display: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
 
   /* Warm paper-white light theme — deliberately not pure-white/cold-gray */
   --c-bg: 250 250 248;
@@ -32,25 +36,28 @@
 .dark {
   color-scheme: dark;
 
-  --c-bg: 15 16 18;
-  --c-bg-subtle: 22 23 27;
-  --c-surface: 26 27 32;
-  --c-border: 42 43 49;
-  --c-ink: 241 240 236;
-  --c-ink-muted: 154 156 166;
+  /* Executive Neon — deep navy-black, glass cards, neon indigo accent */
+  --c-bg: 7 11 20;
+  --c-bg-subtle: 15 23 42;
+  --c-surface: 17 24 39;
+  --c-border: 30 38 58;
+  --c-ink: 241 244 252;
+  --c-ink-muted: 148 156 178;
 
-  --c-primary: 99 102 241;
-  --c-primary-hover: 129 140 248;
-  --c-gold: 226 163 61;
+  --c-primary: 109 93 252;
+  --c-primary-hover: 139 125 255;
+  --c-gold: 245 158 11;
 
-  --c-risk-high: 248 113 113;
-  --c-risk-medium: 226 163 61;
-  --c-risk-low: 74 222 128;
+  --c-risk-high: 239 68 68;
+  --c-risk-medium: 245 158 11;
+  --c-risk-low: 34 197 94;
 
-  --c-sidebar-bg: 11 12 14;
-  --c-sidebar-ink: 231 229 222;
-  --c-sidebar-muted: 138 140 150;
-  --c-sidebar-active: 129 140 248;
+  --c-glow: 109 93 252;
+
+  --c-sidebar-bg: 11 16 28;
+  --c-sidebar-ink: 226 232 245;
+  --c-sidebar-muted: 130 139 162;
+  --c-sidebar-active: 109 93 252;
 }
 
 * {
@@ -62,11 +69,12 @@ body {
   min-height: 100vh;
   background: rgb(var(--c-bg));
   color: rgb(var(--c-ink));
+  font-family: var(--font-sans);
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 h1, h2, h3, h4, .font-display {
-  font-family: 'Sora', system-ui, sans-serif;
+  font-family: var(--font-display);
 }
 
 /* Signature detail: every financial figure renders in tabular monospace
@@ -118,8 +126,10 @@ html[data-animations="off"] *::after {
 }
 
 /* Compact / data-heavy density shrink card padding app-wide. */
-html[data-density="compact"] .rounded-card,
-html[data-density="dataHeavy"] .rounded-card { }
+html[data-density="compact"] .rounded-card { padding: 1rem; }
+html[data-density="compact"] .shadow-card { --space-tight: 1; }
+html[data-density="compact"] section.space-y-6 > * + *,
+html[data-density="compact"] .space-y-6 > * + * { margin-top: 1rem; }
 
 @keyframes spk-draw {
   from { stroke-dashoffset: 240; }
@@ -130,4 +140,110 @@ html[data-density="dataHeavy"] .rounded-card { }
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================================
+   PREMIUM ENTERPRISE MOTION + GLASS SYSTEM (CSS-only, no deps)
+   ============================================================ */
+
+/* Staggered card entrance — apply .enter-up and an inline --delay */
+@keyframes enterUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.enter-up { opacity: 0; animation: enterUp 520ms cubic-bezier(0.22, 1, 0.36, 1) forwards; animation-delay: var(--delay, 0ms); }
+
+/* Shimmer for skeleton loaders */
+@keyframes shimmer { 0% { background-position: -468px 0; } 100% { background-position: 468px 0; } }
+.skeleton {
+  background: linear-gradient(90deg, rgb(var(--c-surface)) 25%, rgb(var(--c-border)) 37%, rgb(var(--c-surface)) 63%);
+  background-size: 936px 100%;
+  animation: shimmer 1.6s linear infinite;
+  border-radius: 12px;
+}
+
+/* Soft pulse for the floating assistant + alert dots */
+@keyframes softPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(var(--c-primary), 0.45); } 50% { box-shadow: 0 0 0 10px rgba(var(--c-primary), 0); } }
+.pulse-ring { animation: softPulse 2.2s ease-out infinite; }
+
+/* Floating motion for background orbs */
+@keyframes floatA { 0%,100% { transform: translate(0,0); } 50% { transform: translate(24px,-30px); } }
+@keyframes floatB { 0%,100% { transform: translate(0,0); } 50% { transform: translate(-28px,24px); } }
+.orb-a { animation: floatA 18s ease-in-out infinite; }
+.orb-b { animation: floatB 22s ease-in-out infinite; }
+
+/* Premium hover lift — apply .lift */
+.lift { transition: transform 240ms cubic-bezier(0.22,1,0.36,1), box-shadow 240ms ease, border-color 240ms ease; }
+.lift:hover { transform: translateY(-3px); }
+
+/* Glassmorphism surface */
+.glass {
+  background: rgba(var(--c-surface), 0.72);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  border: 1px solid rgba(var(--c-ink), 0.08);
+}
+
+/* Animated gradient sweep for premium borders */
+@keyframes borderSweep { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
+
+/* Honour reduced motion globally for these helpers */
+@media (prefers-reduced-motion: reduce) {
+  .enter-up, .skeleton, .pulse-ring, .orb-a, .orb-b { animation: none !important; }
+  .enter-up { opacity: 1; transform: none; }
+  .lift:hover { transform: none; }
+}
+
+/* ============================================================
+   EXECUTIVE NEON — premium glow + glass surface treatments
+   ============================================================ */
+
+/* Neon glow border for hero/feature cards (matches reference) */
+.neon-card {
+  position: relative;
+  background:
+    linear-gradient(180deg, rgba(var(--c-surface), 0.9), rgba(var(--c-bg-subtle), 0.6));
+  border: 1px solid rgba(var(--c-primary), 0.35);
+  box-shadow: 0 0 0 1px rgba(var(--c-primary), 0.06), 0 18px 50px -20px rgba(var(--c-glow, 109 93 252), 0.45);
+}
+
+/* Soft neon glow ring used around the hero band */
+.neon-ring {
+  box-shadow: 0 0 0 1px rgba(var(--c-primary), 0.4), 0 0 60px -10px rgba(var(--c-glow, 109 93 252), 0.5);
+}
+
+/* Premium glass card — translucent surface + blur + hairline border */
+.glass-card {
+  background: rgba(var(--c-surface), 0.7);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Hover shine sweep — a soft light passing across a card on hover */
+.shine { position: relative; overflow: hidden; }
+.shine::after {
+  content: "";
+  position: absolute; top: 0; left: -150%;
+  width: 60%; height: 100%;
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,0.06), transparent);
+  transition: left 700ms cubic-bezier(0.22,1,0.36,1);
+  pointer-events: none;
+}
+.shine:hover::after { left: 150%; }
+
+/* Neon accent glow on hover for cards */
+.glow-hover { transition: transform 240ms cubic-bezier(0.22,1,0.36,1), box-shadow 240ms ease, border-color 240ms ease; }
+.glow-hover:hover {
+  transform: translateY(-3px);
+  border-color: rgba(var(--c-primary), 0.5);
+  box-shadow: 0 16px 44px -20px rgba(var(--c-glow, 109 93 252), 0.55);
+}
+
+/* Pill tab active glow */
+.tab-active-glow { box-shadow: 0 6px 20px -6px rgba(var(--c-glow, 109 93 252), 0.7); }
+
+@media (prefers-reduced-motion: reduce) {
+  .shine::after { transition: none; }
+  .glow-hover:hover { transform: none; }
 }

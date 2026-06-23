@@ -1,9 +1,13 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Menu, X, LogOut, Sun, Moon, Monitor } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { navItems } from '../../constants/nav';
+import { NAV_ICONS } from './navIcons';
 import NotificationBell from './NotificationBell';
+import FloatingAssistant from './FloatingAssistant';
+import MotionBackground from './MotionBackground';
 
 const THEME_CYCLE = ['light', 'dark', 'system'];
 
@@ -15,36 +19,12 @@ const AVATAR_COLORS = {
 };
 
 const ICONS = {
-  sun: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
-      <circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" strokeLinecap="round" />
-    </svg>
-  ),
-  moon: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
-      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  ),
-  system: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
-      <rect x="2" y="4" width="20" height="13" rx="2" /><path d="M8 21h8M12 17v4" strokeLinecap="round" />
-    </svg>
-  ),
-  menu: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
-      <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" />
-    </svg>
-  ),
-  close: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
-      <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
-    </svg>
-  ),
-  logout: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
-      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  ),
+  sun: <Sun size={16} strokeWidth={2} />,
+  moon: <Moon size={16} strokeWidth={2} />,
+  system: <Monitor size={16} strokeWidth={2} />,
+  menu: <Menu size={20} strokeWidth={2} />,
+  close: <X size={20} strokeWidth={2} />,
+  logout: <LogOut size={16} strokeWidth={2} />,
 };
 
 function Navbar() {
@@ -69,6 +49,9 @@ function Navbar() {
     : 'BC';
 
   return (
+    <>
+    <MotionBackground />
+    <FloatingAssistant />
     <header className="sticky top-0 z-40 border-b border-border bg-surface/80 backdrop-blur-md">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 lg:px-6">
         <div className="flex items-center gap-3">
@@ -93,11 +76,12 @@ function Navbar() {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`rounded-pill px-3 py-1.5 text-sm font-medium transition ${
+                className={`group relative rounded-pill px-3 py-1.5 text-sm font-medium transition ${
                   isActive ? 'bg-primary/10 text-primary' : 'text-ink-muted hover:bg-bg-subtle hover:text-ink'
                 }`}
               >
                 {item.label}
+                <span className={`pointer-events-none absolute -bottom-0.5 left-1/2 h-0.5 -translate-x-1/2 rounded-full bg-primary transition-all duration-300 ${isActive ? 'w-5' : 'w-0 group-hover:w-4'}`} />
               </Link>
             );
           })}
@@ -154,15 +138,17 @@ function Navbar() {
             <div className="space-y-1">
               {navItems.map((item) => {
                 const isActive = pathname === item.path;
+                const Icon = NAV_ICONS[item.label];
                 return (
                   <Link
                     key={item.path}
                     to={item.path}
                     onClick={() => setMobileOpen(false)}
-                    className={`block rounded-xl px-4 py-3 text-sm font-medium transition ${
+                    className={`flex items-center gap-2.5 rounded-xl px-4 py-3 text-sm font-medium transition ${
                       isActive ? 'bg-sidebar-active text-white' : 'text-sidebar-ink hover:bg-white/5'
                     }`}
                   >
+                    {Icon && <Icon size={17} strokeWidth={2} />}
                     {item.label}
                   </Link>
                 );
@@ -179,6 +165,7 @@ function Navbar() {
         </div>
       )}
     </header>
+    </>
   );
 }
 

@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useAppearance } from '../../context/AppearanceContext';
+import { NAV_ICONS, SECTION_ICONS, INTEL_ICONS } from './navIcons';
 import CommandCenterService from '../../services/commandCenterService';
 import { LEVELS, LEVEL_BY_ID, classifyActions } from '../command/attentionEngine';
 import { formatCurrency } from '../../utils/formatters';
@@ -126,8 +129,12 @@ function AttentionMeterMini({ result, navigate }) {
 function Sidebar() {
   const { pathname, search } = useLocation();
   const navigate = useNavigate();
+  const { appearance } = useAppearance();
   const activeIntel = new URLSearchParams(search).get('intel');
   const [data, setData] = useState(null);
+  // Compact mode hides the heavier attention-meter detail and tightens the rail.
+  const [manualCollapsed, setManualCollapsed] = useState(false);
+  const compact = appearance.sidebarMode === 'compact' || manualCollapsed;
   const [openGroup, setOpenGroup] = useState(() => {
     const active = NAV_GROUPS.find((g) => pathname.startsWith(g.path));
     return active ? active.label : 'Command Center';
@@ -162,17 +169,46 @@ function Sidebar() {
   const result = classifyActions(data?.action_center);
 
   return (
-    <aside className="hidden w-full max-w-xs shrink-0 rounded-card bg-sidebar-bg p-6 text-sidebar-ink lg:block">
-      <div className="space-y-1">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sidebar-muted">Workspace</p>
-        <h2 className="font-display text-xl font-semibold text-white">Navigation</h2>
+    <aside className={`hidden shrink-0 rounded-card bg-sidebar-bg p-6 text-sidebar-ink transition-all duration-300 lg:block ${compact ? 'w-full max-w-[88px]' : 'w-full max-w-xs'}`}>
+      <div className="flex items-center justify-between">
+        {!compact && (
+          <div className="space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sidebar-muted">Workspace</p>
+            <h2 className="font-display text-xl font-semibold text-white">Navigation</h2>
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={() => setManualCollapsed((v) => !v)}
+          aria-label={compact ? 'Expand sidebar' : 'Collapse sidebar'}
+          title={compact ? 'Expand sidebar' : 'Collapse sidebar'}
+          className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg text-sidebar-muted transition hover:bg-white/10 hover:text-white"
+        >
+          {compact ? '»' : '«'}
+        </button>
       </div>
 
       {/* Accordion nav */}
-      <nav className="mt-6 space-y-1">
+      <nav className={`space-y-1 ${compact ? 'mt-4' : 'mt-6'}`}>
         {NAV_GROUPS.map((group) => {
           const groupActive = pathname.startsWith(group.path);
-          const expanded = openGroup === group.label;
+          const expanded = !compact && openGroup === group.label;
+          if (compact) {
+            // Compact: show only the top-level entries as initials/short labels.
+            const GroupIcon = NAV_ICONS[group.label];
+            return (
+              <button
+                key={group.label}
+                type="button"
+                onClick={() => navigate(group.path)}
+                title={group.label}
+                className={`flex w-full items-center justify-center rounded-xl px-2 py-2.5 transition ${groupActive ? 'bg-sidebar-active text-white' : 'text-sidebar-ink hover:bg-white/5'}`}
+              >
+                {GroupIcon ? <GroupIcon size={20} strokeWidth={2} /> : group.label.slice(0, 2)}
+              </button>
+            );
+          }
+          const GroupIcon = NAV_ICONS[group.label];
           return (
             <div key={group.label}>
               <button
@@ -182,34 +218,49 @@ function Sidebar() {
                   groupActive ? 'bg-sidebar-active text-white shadow-sm' : 'text-sidebar-ink hover:bg-white/5'
                 }`}
               >
-                <span>{group.label}</span>
+                <span className="flex items-center gap-2.5">
+                  {GroupIcon && <GroupIcon size={18} strokeWidth={2} className={groupActive ? 'text-white' : 'text-sidebar-muted'} />}
+                  {group.label}
+                </span>
                 <Chevron open={expanded} />
               </button>
 
-              <div className="overflow-hidden transition-all duration-300 ease-out" style={{ maxHeight: expanded ? `${group.children.length * 38 + 12}px` : '0px', opacity: expanded ? 1 : 0 }}>
-                <div className="ml-3 mt-1 space-y-0.5 border-l border-white/10 pl-3">
-                  {group.children.map((child) => {
-                    const isActiveIntel = child.intel && activeIntel === child.intel && pathname.startsWith('/app/dashboard');
-                    return (
-                      <button
-                        key={child.label}
-                        type="button"
-                        onClick={() => goSubmenu(group, child)}
-                        className={`block w-full rounded-lg px-3 py-1.5 text-left font-medium transition hover:bg-white/5 hover:text-white ${child.sub ? 'pl-6 text-[12px]' : 'text-[13px]'} ${isActiveIntel ? 'bg-white/10 text-white' : 'text-sidebar-muted'}`}
-                      >
-                        {child.sub && <span className="mr-1.5 text-white/30">·</span>}{child.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+              <AnimatePresence initial={false}>
+                {expanded && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                    className="overflow-hidden"
+                  >
+                    <div className="ml-3 mt-1 space-y-0.5 border-l border-white/10 pl-3">
+                      {group.children.map((child) => {
+                        const isActiveIntel = child.intel && activeIntel === child.intel && pathname.startsWith('/app/dashboard');
+                        const ChildIcon = child.intel ? INTEL_ICONS[child.intel] : (child.tab ? SECTION_ICONS[child.tab] : null);
+                        return (
+                          <button
+                            key={child.label}
+                            type="button"
+                            onClick={() => goSubmenu(group, child)}
+                            className={`flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left font-medium transition hover:bg-white/5 hover:text-white ${child.sub ? 'pl-5 text-[12px]' : 'text-[13px]'} ${isActiveIntel ? 'bg-white/10 text-white' : 'text-sidebar-muted'}`}
+                          >
+                            {ChildIcon && <ChildIcon size={child.sub ? 13 : 15} strokeWidth={2} className="shrink-0 opacity-80" />}
+                            <span className="truncate">{child.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           );
         })}
       </nav>
 
       {/* Business Attention Meter — replaces Today's Pulse */}
-      <AttentionMeterMini result={result} navigate={navigate} />
+      {!compact && <AttentionMeterMini result={result} navigate={navigate} />}
     </aside>
   );
 }

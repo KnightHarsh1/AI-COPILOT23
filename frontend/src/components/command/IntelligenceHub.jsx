@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { INTEL_ICONS } from "../common/navIcons";
 import CustomerIntelligenceCard from "./CustomerIntelligenceCard";
 import OpportunityCard from "./OpportunityCard";
 import GstCard from "./GstCard";
@@ -92,6 +94,7 @@ function IntelligenceHub({ data, onSetup, onProfile, onReload, insightsStyle, in
       <div className="flex gap-1.5 overflow-x-auto pb-1">
         {CATEGORIES.map((c) => {
           const active = cat === c.id;
+          const Icon = INTEL_ICONS[c.id];
           return (
             <button
               key={c.id}
@@ -101,6 +104,7 @@ function IntelligenceHub({ data, onSetup, onProfile, onReload, insightsStyle, in
                 active ? "border-primary bg-primary text-white shadow-card" : "border-border text-ink-muted hover:bg-bg-subtle hover:text-ink"
               }`}
             >
+              {Icon && <Icon size={15} strokeWidth={2} />}
               {c.label}
               {has[c.id] && !active && <span className="h-1.5 w-1.5 rounded-full bg-risk-low" />}
             </button>
@@ -108,10 +112,18 @@ function IntelligenceHub({ data, onSetup, onProfile, onReload, insightsStyle, in
         })}
       </div>
 
-      {/* Level 2 — selected module */}
-      <div key={cat} className="animate-[fadeIn_220ms_ease]">
-        {render()}
-      </div>
+      {/* Level 2 — selected module (animated swap) */}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={cat}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -6 }}
+          transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+        >
+          {render()}
+        </motion.div>
+      </AnimatePresence>
 
       {/* AI insights apply across modules */}
       <InsightsPanel insights={data.insights} variant={insightsStyle} />

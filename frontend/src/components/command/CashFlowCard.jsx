@@ -27,7 +27,7 @@ function CashFlowCard({ cashFlow }) {
   const runwayTone = runway.status === "critical" ? "text-risk-high" : runway.status === "warning" ? "text-gold" : "text-risk-low";
 
   return (
-    <section className="rounded-card border border-border bg-surface p-6 shadow-card">
+    <section className="rounded-card border border-border bg-surface p-6 shadow-card lift hover:border-primary/30 hover:shadow-card-hover">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-display text-lg font-semibold text-ink">Cash flow</h2>
         {s.period_start && s.period_end && (
