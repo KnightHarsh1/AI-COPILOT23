@@ -18,8 +18,10 @@ function AvatarMenu({ user, onLogout }) {
 
   useEffect(() => {
     const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
     document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", onDoc); document.removeEventListener("keydown", onKey); };
   }, []);
 
   const initials = user?.first_name
@@ -34,7 +36,7 @@ function AvatarMenu({ user, onLogout }) {
     { label: "Business Profile", icon: Building2, action: () => go("/app/settings?section=business") },
     { label: "Subscription Plan", icon: CreditCard, action: () => go("/app/settings?section=subscription") },
     { label: "Settings", icon: SettingsIcon, action: () => go("/app/settings") },
-    { label: "Help Center", icon: HelpCircle, action: () => go("/app/chat") },
+    { label: "Help Center", icon: HelpCircle, action: () => go("/app/help") },
   ];
 
   return (

@@ -1,8 +1,10 @@
 import { useEffect, useState, createContext, useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { User as SettingsUser, Building2 as SettingsBuilding, Bell as SettingsBell, Shield as SettingsShield, CreditCard as SettingsCard, Sparkles as SettingsBrain, Settings as SettingsGear } from 'lucide-react';
 import Navbar from '../components/common/Navbar';
 import AppearanceSettings from '../components/appearance/AppearanceSettings';
+import { useAppearance } from '../context/AppearanceContext';
 import { useAccessProfile, ROLE_OPTIONS } from '../context/AccessProfileContext';
 import Sidebar from '../components/common/Sidebar';
 import Button from '../components/common/Button';
@@ -47,31 +49,31 @@ const SettingsNavContext = createContext("profile");
 
 // Two-panel settings navigation. Each item's `id` matches a SectionCard `group`.
 const SETTINGS_NAV = [
-  { heading: "Account", items: [
+  { heading: "Account", icon: SettingsUser, items: [
     { id: "profile", label: "My Profile" },
     { id: "password", label: "Password" },
     { id: "ai", label: "AI Preferences" },
   ]},
-  { heading: "Organization", items: [
+  { heading: "Organization", icon: SettingsBuilding, items: [
     { id: "business", label: "Business Profile" },
     { id: "compliance", label: "Compliance Details" },
     { id: "team", label: "Team Access" },
     { id: "users", label: "Users & Roles" },
   ]},
-  { heading: "Communication", items: [
+  { heading: "Communication", icon: SettingsBell, items: [
     { id: "notifications", label: "Notifications" },
     { id: "whatsapp", label: "WhatsApp Alerts" },
   ]},
-  { heading: "Data & Privacy", items: [
+  { heading: "Data & Privacy", icon: SettingsShield, items: [
     { id: "data", label: "Your Data" },
   ]},
-  { heading: "Billing", items: [
+  { heading: "Billing", icon: SettingsCard, items: [
     { id: "subscription", label: "Subscription Plan" },
   ]},
-  { heading: "Business Intelligence", items: [
+  { heading: "Business Intelligence", icon: SettingsBrain, items: [
     { id: "risk", label: "Risk Preferences" },
   ]},
-  { heading: "System", items: [
+  { heading: "System", icon: SettingsGear, items: [
     { id: "appearance", label: "Appearance" },
     { id: "account", label: "Account & Logout" },
   ]},
@@ -147,10 +149,17 @@ function SettingsPage() {
   const navigate = useNavigate();
   const { user, logout, updateUser } = useAuth();
   const { theme, setTheme } = useTheme();
+  const { appearance: _ap, setMode } = useAppearance();
+  const appearanceMode = _ap.appearanceMode;
   const [activeSection, setActiveSection] = useState(() => {
     if (typeof window === "undefined") return "profile";
     return new URLSearchParams(window.location.search).get("section") || "profile";
   });
+  const _settingsLoc = useLocation();
+  useEffect(() => {
+    const s = new URLSearchParams(_settingsLoc.search).get("section");
+    if (s) setActiveSection(s);
+  }, [_settingsLoc.search]);
 
   const [profile, setProfile] = useState({ first_name: '', last_name: '', email: '', company_name: '' });
   const [profileStatus, setProfileStatus] = useState(null);
@@ -400,8 +409,11 @@ function SettingsPage() {
             {/* Settings nav rail */}
             <nav className="glass-card h-fit rounded-card p-3 lg:sticky lg:top-20">
               {SETTINGS_NAV.map((sec) => (
-                <div key={sec.heading} className="mb-3 last:mb-0">
-                  <p className="px-3 pb-1 pt-2 text-[10px] font-bold uppercase tracking-wider text-ink-muted">{sec.heading}</p>
+                <div key={sec.heading} className="mb-4 border-b border-border/60 pb-3 last:mb-0 last:border-0 last:pb-0">
+                  <div className="flex items-center gap-2 px-2 pb-1.5 pt-1">
+                    {sec.icon && <sec.icon size={15} className="text-primary" strokeWidth={2.5} />}
+                    <p className="text-xs font-extrabold uppercase tracking-wider text-ink">{sec.heading}</p>
+                  </div>
                   {sec.items.map((it) => {
                     const active = activeSection === it.id;
                     return (
@@ -432,22 +444,31 @@ function SettingsPage() {
                   className="space-y-6"
                 >
 
-          <SectionCard title="Appearance" description="Choose how Business Copilot looks on this device." group="appearance">
+          <SectionCard title="Appearance mode" description="Light and Dark use a curated theme. Custom lets you choose any theme." group="appearance">
             <div className="flex flex-wrap gap-2">
-              {THEME_OPTIONS.map((option) => (
+              {[
+                { value: "light", label: "Light", hint: "Uses Aurora Mist theme" },
+                { value: "dark", label: "Dark", hint: "Uses Cosmic Nexus theme" },
+                { value: "custom", label: "Custom", hint: "Choose any theme from the gallery below" },
+              ].map((option) => (
                 <button
                   key={option.value}
                   type="button"
-                  onClick={() => setTheme(option.value)}
+                  onClick={() => setMode(option.value)}
                   className={`rounded-pill px-4 py-2 text-sm font-semibold transition ${
-                    theme === option.value ? 'bg-primary text-white' : 'bg-bg-subtle text-ink-muted hover:text-ink'
+                    appearanceMode === option.value ? 'bg-primary text-white' : 'bg-bg-subtle text-ink-muted hover:text-ink'
                   }`}
                 >
                   {option.label}
                 </button>
               ))}
             </div>
-            <p className="mt-3 text-xs text-ink-muted">Saved automatically and remembered after you refresh.</p>
+            <p className="mt-3 text-sm font-medium text-ink">
+              {appearanceMode === "light" && "Light → Uses Aurora Mist theme"}
+              {appearanceMode === "dark" && "Dark → Uses Cosmic Nexus theme"}
+              {appearanceMode === "custom" && "Custom → Choose any theme from the gallery below"}
+            </p>
+            <p className="mt-1 text-xs text-ink-muted">Saved automatically and remembered after you refresh, log out, and restart.</p>
           </SectionCard>
 
           <SectionCard title="Appearance" description="Choose your accent colour and overall feel." group="appearance">

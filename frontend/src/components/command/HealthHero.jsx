@@ -23,10 +23,18 @@ function HealthHero({ health, healthStyle }) {
   const unavailable = new Set((h.components_unavailable || []).map((c) => c.component));
   const conf = h.data_completeness != null ? Math.round(h.data_completeness) : null;
   // Trust metadata reused across the KPI cards. Only fields the payload actually
-  // supports are shown; everything else degrades gracefully in the drawer.
-  const exp = (title, source, formula, logic) => ({
-    title, hint: logic,
-    detail: { source, formula, logic, dateRange: "Last 30 days", confidence: conf, lastRefresh: h.last_updated || h.as_of || "Latest import" },
+  // supports are shown; everything else degrades gracefully in the popover.
+  const refreshed = h.last_updated || h.as_of || "Latest import";
+  const exp = (title, what, why, sources, formula, whyChanged) => ({
+    title, hint: what,
+    detail: {
+      what, why, sources, formula,
+      dateRange: "Last 30 days",
+      records: h.transaction_count ? `${h.transaction_count} transactions` : undefined,
+      confidence: conf,
+      lastRefresh: refreshed,
+      whyChanged,
+    },
   });
 
   return (
@@ -43,7 +51,7 @@ function HealthHero({ health, healthStyle }) {
           sparkColor="rgb(var(--c-primary))"
           sparkUp={(h.growth_rate ?? 1) >= 0}
           seed={2}
-          explain={exp("Revenue (30d)", "Sales register (paid + recorded invoices)", "Σ invoice totals in period", "Sum of all sales recorded in the last 30 days.")}
+          explain={exp("Revenue (30d)", "Total sales recorded in the last 30 days.", "Your top-line income — the starting point for profit and cash.", ["Sales register", "Paid & recorded invoices"], "Σ invoice totals in period", (h.growth_rate ?? 0) >= 0 ? "Up from higher invoice volume vs the prior period." : "Down on lower invoice volume vs the prior period.")}
         />
         <StatCard
           label="Net profit (30d)"
@@ -53,7 +61,7 @@ function HealthHero({ health, healthStyle }) {
           sparkColor="rgb(var(--c-risk-low))"
           sparkUp={(h.net_profit ?? 0) >= 0}
           seed={5}
-          explain={exp("Net profit (30d)", "Sales & expense ledgers", "Revenue − total expenses", "Revenue for the period minus all recorded expenses.")}
+          explain={exp("Net profit (30d)", "What remains after all expenses.", "The real money your business keeps — health depends on it.", ["Sales ledger", "Expense ledger"], "Revenue − total expenses", (h.net_profit ?? 0) >= 0 ? "Positive: revenue outpaced expenses this period." : "Negative: expenses exceeded revenue this period.")}
         />
         <StatCard
           label="Receivables"
@@ -63,7 +71,7 @@ function HealthHero({ health, healthStyle }) {
           sparkColor="rgb(var(--c-gold))"
           sparkUp
           seed={8}
-          explain={exp("Receivables", "Unpaid customer invoices", "Σ unpaid invoice balances", "Total still owed to you across open invoices.")}
+          explain={exp("Receivables", "Money customers still owe you.", "High receivables tie up cash you could be using.", ["Unpaid customer invoices"], "Σ unpaid invoice balances", "Reflects open invoices not yet marked paid.")}
         />
         <StatCard
           label="Cash position"
@@ -73,7 +81,7 @@ function HealthHero({ health, healthStyle }) {
           sparkColor="rgb(var(--c-primary))"
           sparkUp
           seed={11}
-          explain={exp("Cash position", "Bank & cash accounts / collections", "Opening balance + inflows − outflows", "Estimated cash on hand from recorded movements.")}
+          explain={exp("Cash position", "Cash available right now.", "Cash keeps the lights on — the ultimate survival metric.", ["Bank statement", "Cash accounts", "Collections"], "Opening balance + inflows − outflows", "Changes as money moves in and out of recorded accounts.")}
         />
         <StatCard
           label="Working capital"
@@ -84,7 +92,7 @@ function HealthHero({ health, healthStyle }) {
           sparkColor="rgb(var(--c-primary))"
           sparkUp={(h.working_capital ?? 0) >= 0}
           seed={14}
-          explain={exp("Working capital", "Balance sheet (current accounts)", "Current assets − current liabilities", "Short-term liquidity buffer for operations.")}
+          explain={exp("Working capital", "Short-term liquidity buffer.", "Tells you if you can cover near-term obligations.", ["Balance sheet (current accounts)"], "Current assets − current liabilities", (h.working_capital ?? 0) >= 0 ? "Positive: current assets exceed current liabilities." : "Negative: current liabilities exceed current assets.")}
         />
         <StatCard
           label="Expenses (30d)"
@@ -94,7 +102,7 @@ function HealthHero({ health, healthStyle }) {
           sparkColor="rgb(var(--c-gold))"
           sparkUp={false}
           seed={17}
-          explain={exp("Expenses (30d)", "Expense ledger", "Σ expense entries in period", "All costs recorded over the last 30 days.")}
+          explain={exp("Expenses (30d)", "All costs recorded in the last 30 days.", "Controlling expenses directly protects your profit.", ["Expense ledger"], "Σ expense entries in period", "Moves with recorded purchases and bills this period.")}
         />
       </div>
 

@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import Navbar from "../components/common/Navbar";
 import Sidebar from "../components/common/Sidebar";
 import IngestionWizard from "../components/ingestion/IngestionWizard";
@@ -26,7 +27,17 @@ const UNLOCKS = [
 ];
 
 function DataCenterPage() {
-  const [tab, setTab] = useState("overview");
+  const _dcLoc = useLocation();
+  const _validTabs = ["overview", "import", "history", "coverage", "freshness", "dictionary"];
+  const [tab, setTab] = useState(() => {
+    if (typeof window === "undefined") return "overview";
+    const t = new URLSearchParams(window.location.search).get("tab");
+    return _validTabs.includes(t) ? t : "overview";
+  });
+  useEffect(() => {
+    const t = new URLSearchParams(_dcLoc.search).get("tab");
+    if (t && _validTabs.includes(t)) setTab(t);
+  }, [_dcLoc.search]);
   const [coverage, setCoverage] = useState(null);
   const [loading, setLoading] = useState(true);
 

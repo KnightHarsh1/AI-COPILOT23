@@ -168,9 +168,18 @@ function AppearanceSettings() {
         <ThemePreview theme={previewTheme} />
       </Row>
 
-      {/* Theme palette — grouped by category, each a rich card */}
-      <Row label="Theme" hint="Re-skins the entire interface — backgrounds, cards, borders, navigation, charts, and badges.">
-        <div className="space-y-5">
+      {/* Theme palette — grouped by category, each a rich card. Locked unless
+          the appearance mode is Custom (Light/Dark bind to a fixed theme). */}
+      <Row label="Theme" hint={a.appearanceMode === "custom" ? "Re-skins the entire interface — backgrounds, cards, borders, navigation, charts, and badges." : undefined}>
+        {a.appearanceMode !== "custom" && (
+          <div className="mb-3 flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-3.5 py-2.5 text-sm">
+            <span className="text-primary">🔒</span>
+            <span className="text-ink">
+              {a.appearanceMode === "light" ? "Light mode uses Aurora Mist." : "Dark mode uses Cosmic Nexus."} Switch to <span className="font-semibold">Custom</span> mode above to choose any theme.
+            </span>
+          </div>
+        )}
+        <div className={`space-y-5 ${a.appearanceMode !== "custom" ? "pointer-events-none select-none opacity-50" : ""}`}>
           {THEME_CATEGORIES.map((cat) => {
             const items = THEMES.filter((t) => t.category === cat.id);
             if (items.length === 0) return null;

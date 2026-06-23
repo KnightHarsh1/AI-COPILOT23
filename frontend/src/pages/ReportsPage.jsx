@@ -185,9 +185,9 @@ function ReportsPage() {
                         <h3 className="text-sm font-semibold text-ink">Metrics</h3>
                         <ul className="mt-3 space-y-2 text-sm text-ink-muted">
                           {Object.entries(report.payload.metrics).map(([key, value]) => (
-                            <li key={key} className="flex justify-between gap-4">
-                              <span>{key.replace(/_/g, ' ')}</span>
-                              <span className="figure font-semibold text-ink">{String(value)}</span>
+                            <li key={key} className="flex items-center justify-between gap-3">
+                              <span className="min-w-0 flex-1 truncate">{key.replace(/_/g, ' ')}</span>
+                              <span className="figure-value shrink-0 font-semibold text-ink" title={String(value)}>{String(value)}</span>
                             </li>
                           ))}
                         </ul>

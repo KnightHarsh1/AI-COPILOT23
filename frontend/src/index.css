@@ -31,6 +31,42 @@
   --c-sidebar-ink: 231 229 222;
   --c-sidebar-muted: 148 150 161;
   --c-sidebar-active: 99 102 241;
+
+  /* ----------------------------------------------------------------
+     Centralized semantic design tokens. These alias the --c-* palette
+     so components can reference intent ("text-primary", "card-bg")
+     instead of raw colours. Adding a new theme only needs to override
+     the --c-* values (or these) — never component CSS. Every theme in
+     AppearanceContext sets the --c-* group, so these resolve for all.
+     ---------------------------------------------------------------- */
+  --page-bg: rgb(var(--c-bg));
+  --surface-bg: rgb(var(--c-bg-subtle));
+  --card-bg: rgb(var(--c-surface));
+  --card-hover-bg: rgb(var(--c-bg-subtle));
+
+  --text-primary: rgb(var(--c-ink));
+  --text-secondary: rgb(var(--c-ink-muted));
+  --text-muted: rgb(var(--c-ink-muted) / 0.7);
+  --text-inverse: rgb(var(--c-bg));
+
+  --border-color: rgb(var(--c-border));
+  --border-hover: rgb(var(--c-primary) / 0.4);
+
+  --accent-primary: rgb(var(--c-primary));
+  --accent-secondary: rgb(var(--c-primary-hover));
+
+  --success: rgb(var(--c-risk-low));
+  --warning: rgb(var(--c-risk-medium));
+  --danger: rgb(var(--c-risk-high));
+  --info: rgb(var(--c-primary));
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.18);
+  --shadow-md: 0 6px 18px -8px rgb(0 0 0 / 0.28);
+  --shadow-lg: 0 18px 50px -20px rgb(0 0 0 / 0.45);
+
+  --chart-primary: rgb(var(--c-primary));
+  --chart-secondary: rgb(var(--c-primary-hover));
+  --chart-tertiary: rgb(var(--c-gold, 245 158 11));
 }
 
 .dark {
@@ -86,13 +122,32 @@ h1, h2, h3, h4, .font-display {
 }
 
 /* Signature detail: every financial figure renders in tabular monospace
-   so amounts line up like an instrument panel, not just styled text. */
+   so amounts line up like an instrument panel, not just styled text.
+   Figures NEVER wrap, clip mid-number, or break the layout — they stay on a
+   single line and shrink via responsive sizing where the card sets it. */
 .figure,
 .font-figure {
   font-family: '"JetBrains Mono"', ui-monospace, monospace;
   font-feature-settings: 'tnum';
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* figure-value: for primary KPI values that must ALWAYS be fully visible.
+   Single line, tabular, but NEVER clipped or ellipsised — financial values are
+   never hidden. Pair with responsive font sizing + compact formatting. */
+.figure-value {
+  font-family: '"JetBrains Mono"', ui-monospace, monospace;
+  font-feature-settings: 'tnum';
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 ::-webkit-scrollbar {

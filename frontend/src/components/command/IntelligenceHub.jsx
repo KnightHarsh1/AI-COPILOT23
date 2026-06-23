@@ -19,16 +19,16 @@ import InsightsPanel from "../appearance/InsightsPanel";
 // intelligence — just focused navigation over the same data and components.
 
 const CATEGORIES = [
-  { id: "customer", label: "Customer" },
-  { id: "cashflow", label: "Cash Flow" },
-  { id: "financial", label: "Financial Position" },
-  { id: "collections", label: "Collections" },
-  { id: "product", label: "Inventory" },
-  { id: "profit", label: "Profit" },
-  { id: "compliance", label: "Compliance" },
-  { id: "gst", label: "GST" },
-  { id: "opportunity", label: "Opportunity" },
-  { id: "market", label: "Market" },
+  { id: "customer", label: "Customer Intelligence", short: "Customer" },
+  { id: "cashflow", label: "Cash Flow Intelligence", short: "Cash Flow" },
+  { id: "financial", label: "Financial Position", short: "Financial" },
+  { id: "collections", label: "Collections Intelligence", short: "Collections" },
+  { id: "product", label: "Inventory Intelligence", short: "Inventory" },
+  { id: "profit", label: "Profit Intelligence", short: "Profit" },
+  { id: "compliance", label: "Compliance Intelligence", short: "Compliance" },
+  { id: "gst", label: "GST Intelligence", short: "GST" },
+  { id: "opportunity", label: "Opportunity Intelligence", short: "Opportunity" },
+  { id: "market", label: "Market Radar", short: "Market" },
 ];
 
 function EmptyModule({ label }) {
@@ -61,6 +61,22 @@ function IntelligenceHub({ data, onSetup, onProfile, onReload, insightsStyle, in
     market: !!(data.market && data.market.available),
   };
 
+  // Count alerts per module from the action center so each card can show a live
+  // alert badge. Maps action categories → intelligence module ids.
+  const CAT_TO_MODULE = {
+    collections: "collections", customer_risk: "customer", liquidity_risk: "cashflow",
+    cash_flow_risk: "cashflow", working_capital: "financial", debt_risk: "financial",
+    profitability: "profit", inventory_risk: "product", compliance: "compliance",
+    gst: "gst", reconciliation: "cashflow", opportunity: "opportunity",
+    market_risk: "market", market_opportunity: "market",
+  };
+  const moduleAlerts = {};
+  const _ac = data.action_center || {};
+  [...(_ac.today || []), ...(_ac.week || []), ...(_ac.month || [])].forEach((a) => {
+    const m = CAT_TO_MODULE[a.category];
+    if (m && a.priority !== "low") moduleAlerts[m] = (moduleAlerts[m] || 0) + 1;
+  });
+
   const render = () => {
     switch (cat) {
       case "customer":
@@ -90,24 +106,44 @@ function IntelligenceHub({ data, onSetup, onProfile, onReload, insightsStyle, in
 
   return (
     <div id="intelligence-section" className="space-y-5">
-      {/* Level 1 — category tabs */}
-      <div className="flex gap-1.5 overflow-x-auto pb-1">
+      {/* Level 1 — large intelligence module cards (icon, name, status, alerts) */}
+      <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2 sm:grid sm:grid-cols-2 sm:overflow-visible lg:grid-cols-3 xl:grid-cols-5">
         {CATEGORIES.map((c) => {
           const active = cat === c.id;
           const Icon = INTEL_ICONS[c.id];
+          const available = has[c.id];
+          const alerts = moduleAlerts[c.id] || 0;
+          const status = !available ? "No data" : alerts > 0 ? `${alerts} alert${alerts > 1 ? "s" : ""}` : "Healthy";
+          const statusTone = !available ? "text-ink-muted" : alerts > 0 ? "text-risk-high" : "text-risk-low";
+          const dot = !available ? "bg-ink-muted" : alerts > 0 ? "bg-risk-high" : "bg-risk-low";
           return (
-            <button
+            <motion.button
               key={c.id}
               type="button"
               onClick={() => setCat(c.id)}
-              className={`flex shrink-0 items-center gap-1.5 rounded-pill border px-3.5 py-1.5 text-sm font-semibold transition ${
-                active ? "border-primary bg-primary text-white shadow-card" : "border-border text-ink-muted hover:bg-bg-subtle hover:text-ink"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className={`group relative flex min-w-[180px] flex-col gap-2 overflow-hidden rounded-card border p-4 text-left transition sm:min-w-0 ${
+                active
+                  ? "border-primary bg-primary/5 shadow-card tab-active-glow"
+                  : "border-border bg-surface hover:border-primary/40"
               }`}
             >
-              {Icon && <Icon size={15} strokeWidth={2} />}
-              {c.label}
-              {has[c.id] && !active && <span className="h-1.5 w-1.5 rounded-full bg-risk-low" />}
-            </button>
+              {active && <span className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-primary to-primary-hover" />}
+              <div className="flex items-center justify-between">
+                <span className={`flex h-9 w-9 items-center justify-center rounded-xl transition ${active ? "bg-primary text-white" : "bg-primary/10 text-primary group-hover:scale-110"}`}>
+                  {Icon && <Icon size={18} strokeWidth={2} />}
+                </span>
+                {alerts > 0 && available && (
+                  <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-risk-high px-1.5 text-[10px] font-bold text-white">{alerts}</span>
+                )}
+              </div>
+              <p className={`text-sm font-bold leading-tight ${active ? "text-ink" : "text-ink"}`}>{c.label}</p>
+              <span className="flex items-center gap-1.5">
+                <span className={`h-2 w-2 rounded-full ${dot}`} />
+                <span className={`text-xs font-semibold ${statusTone}`}>{status}</span>
+              </span>
+            </motion.button>
           );
         })}
       </div>

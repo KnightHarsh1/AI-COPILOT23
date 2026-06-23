@@ -11,6 +11,7 @@ import DashboardPage from './pages/DashboardPage';
 import CommandCenterPage from './pages/CommandCenterPage';
 import UploadPage from './pages/UploadPage';
 import ReportsPage from './pages/ReportsPage';
+import HelpCenterPage from './pages/HelpCenterPage';
 import AlertsPage from './pages/AlertsPage';
 import SettingsPage from './pages/SettingsPage';
 import ProtectedRoute from './components/common/ProtectedRoute';
@@ -66,6 +67,15 @@ function App() {
   element={
     <ProtectedRoute>
       <SettingsPage />
+    </ProtectedRoute>
+  }
+/>
+
+<Route
+  path="/app/help"
+  element={
+    <ProtectedRoute>
+      <HelpCenterPage />
     </ProtectedRoute>
   }
 />

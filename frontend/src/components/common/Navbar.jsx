@@ -99,7 +99,7 @@ function Navbar() {
           <div className="absolute inset-0 bg-black/40" onClick={() => setMobileOpen(false)} />
           <div className="absolute inset-y-0 left-0 w-72 bg-sidebar-bg p-5 text-sidebar-ink shadow-xl">
             <div className="mb-6 flex items-center justify-between">
-              <span className="font-display text-lg font-bold text-white">Business Copilot</span>
+              <span className="font-display text-lg font-bold text-sidebar-ink">Business Copilot</span>
               <button
                 type="button"
                 onClick={() => setMobileOpen(false)}

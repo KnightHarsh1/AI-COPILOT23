@@ -44,27 +44,27 @@ const NAV_GROUPS = [
   {
     label: 'Reports', path: '/app/reports',
     children: [
-      { label: 'Executive Summary' },
-      { label: 'Financial Report' },
-      { label: 'Cash Flow Report' },
-      { label: 'Export Center' },
+      { label: 'Executive Summary', q: 'type=executive_summary' },
+      { label: 'Financial Report', q: 'type=financial' },
+      { label: 'Cash Flow Report', q: 'type=cash_flow' },
+      { label: 'Export Center', q: 'tab=export' },
     ],
   },
   {
     label: 'AI CFO', path: '/app/chat',
     children: [
-      { label: 'Ask AI CFO' },
-      { label: 'Business Briefing' },
+      { label: 'Ask AI CFO', path: '/app/chat' },
+      { label: 'Business Briefing', path: '/app/dashboard', q: 'tab=today' },
       { label: 'Forecasts', path: '/app/forecast' },
     ],
   },
   {
     label: 'Settings', path: '/app/settings',
     children: [
-      { label: 'Company Profile' },
-      { label: 'Notifications' },
-      { label: 'Users & Roles' },
-      { label: 'Preferences' },
+      { label: 'Company Profile', path: '/app/settings', q: 'section=business' },
+      { label: 'Notifications', path: '/app/settings', q: 'section=notifications' },
+      { label: 'Users & Roles', path: '/app/settings', q: 'section=users' },
+      { label: 'Preferences', path: '/app/settings', q: 'section=appearance' },
     ],
   },
 ];
@@ -86,7 +86,7 @@ function AttentionMeterMini({ result, navigate }) {
 
   return (
     <div className="mt-8 rounded-xl border border-white/10 bg-white/5 p-4">
-      <p className="text-sm font-semibold text-white">Business attention</p>
+      <p className="text-sm font-semibold text-sidebar-ink">Business attention</p>
       <p className="mt-0.5 text-[11px] text-sidebar-muted">What needs attention right now</p>
 
       {/* Overall status */}
@@ -112,15 +112,15 @@ function AttentionMeterMini({ result, navigate }) {
                 <span className={`h-2 w-2 rounded-full ${lvl.dot}`} />
                 <span className="text-sidebar-ink">{lvl.label}</span>
               </span>
-              <span className="figure font-semibold text-white">{count}</span>
+              <span className="figure font-semibold text-sidebar-ink">{count}</span>
             </button>
           );
         })}
       </div>
 
       <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-3 text-[11px] text-sidebar-muted">
-        <span>Total active: <span className="figure font-semibold text-white">{totalActive}</span></span>
-        {impactAtRisk > 0 && <span className="figure font-semibold text-white">{formatCurrency(impactAtRisk)}</span>}
+        <span>Total active: <span className="figure font-semibold text-sidebar-ink">{totalActive}</span></span>
+        {impactAtRisk > 0 && <span className="figure font-semibold text-sidebar-ink">{formatCurrency(impactAtRisk)}</span>}
       </div>
     </div>
   );
@@ -149,8 +149,8 @@ function Sidebar() {
   }, []);
 
   const goSubmenu = (group, child) => {
-    if (child.path) { navigate(child.path); return; }
-    if (group.path === '/app/dashboard' && child.tab) {
+    // Dashboard tabs/intel modules scroll within the single-page command center.
+    if ((group.path === '/app/dashboard' || child.path === '/app/dashboard') && child.tab) {
       const q = child.intel ? `?tab=${child.tab}&intel=${child.intel}` : `?tab=${child.tab}`;
       navigate(`/app/dashboard${q}`);
       const target = child.section || (child.intel ? 'intelligence-section' : null);
@@ -162,8 +162,10 @@ function Sidebar() {
       }
       return;
     }
+    // Explicit destination path (optionally with a query string).
+    const dest = child.path || group.path;
     const q = child.q ? `?${child.q}` : '';
-    navigate(`${group.path}${q}`);
+    navigate(`${dest}${q}`);
   };
 
   const result = classifyActions(data?.action_center);
@@ -174,7 +176,7 @@ function Sidebar() {
         {!compact && (
           <div className="space-y-1">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sidebar-muted">Workspace</p>
-            <h2 className="font-display text-xl font-semibold text-white">Navigation</h2>
+            <h2 className="font-display text-xl font-semibold text-sidebar-ink">Navigation</h2>
           </div>
         )}
         <button

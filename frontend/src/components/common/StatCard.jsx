@@ -1,20 +1,23 @@
-import { formatCurrency } from "../../utils/formatters";
+import { formatCurrency, formatCurrencyCompact } from "../../utils/formatters";
 import useCountUp from "../../hooks/useCountUp";
 import Sparkline from "./Sparkline";
 import { ExplainTooltip } from "./ExplainTooltip";
 
-// Executive KPI card — premium presentation layer. Business-critical numbers are
-// NEVER truncated or hidden; the full Indian-format value is always shown. Adds
-// count-up animation, hover lift, glow border, a hover-revealed trend row, and a
-// sparkline trend line (bottom-right, like the reference). None of this touches
-// the underlying value or any KPI calculation — purely how the number displays.
+// Executive KPI card — premium presentation layer. The value renders on a SINGLE
+// line and never wraps or clips mid-number: large amounts compact to ₹2.3L /
+// ₹1.25Cr with the full Indian-format value on hover, smaller amounts show in
+// full. Count-up, hover lift, glow border, trend row, and sparkline are pure
+// presentation — no KPI calculation is touched.
 function fontSizeForLength(text) {
   const len = String(text).length;
-  if (len <= 9) return "text-3xl";
-  if (len <= 12) return "text-2xl";
-  if (len <= 15) return "text-xl";
+  if (len <= 8) return "text-3xl";
+  if (len <= 11) return "text-2xl";
+  if (len <= 14) return "text-xl";
   return "text-lg";
 }
+
+// Compact when the full currency string is long enough to risk wrapping.
+const COMPACT_AT = 100000; // ₹1L+
 
 function StatCard({
   label, value, isCurrency = true, trend, accent, icon,
@@ -23,10 +26,15 @@ function StatCard({
   explain,
 }) {
   const numericValue = typeof value === "number" ? value : Number(value) || 0;
+  const useCompact = isCurrency && Math.abs(numericValue) >= COMPACT_AT;
   const animated = useCountUp(numericValue, { enabled: animate && isCurrency && Math.abs(numericValue) > 0 });
   const shown = animate && isCurrency ? animated : numericValue;
-  const display = isCurrency ? formatCurrency(Math.round(shown)) : String(value);
-  const sizeClass = fontSizeForLength(isCurrency ? formatCurrency(numericValue) : String(value));
+  // Display: compact for large currency (with full value as title), else full.
+  const fullValue = isCurrency ? formatCurrency(numericValue) : String(value);
+  const display = isCurrency
+    ? (useCompact ? formatCurrencyCompact(Math.round(shown)) : formatCurrency(Math.round(shown)))
+    : String(value);
+  const sizeClass = fontSizeForLength(display);
 
   const labelEl = (
     <p className="text-sm font-semibold uppercase tracking-wide text-ink-muted">{label}</p>
@@ -50,16 +58,17 @@ function StatCard({
         )}
       </div>
 
-      {/* Value + sparkline row */}
-      <div className="relative mt-3 flex items-end justify-between gap-3">
+      {/* Value + sparkline row — the value ALWAYS takes priority and is never
+          clipped; the sparkline yields space and hides on cramped widths. */}
+      <div className="relative mt-3 flex items-end gap-3">
         <p
-          className={`figure font-bold leading-tight ${sizeClass} ${accent || "text-ink"}`}
-          style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}
+          className={`figure-value flex-1 font-bold leading-tight ${sizeClass} ${accent || "text-ink"}`}
+          title={fullValue}
         >
           {display}
         </p>
-        <div className="shrink-0 opacity-90 transition-opacity duration-300 group-hover:opacity-100">
-          <Sparkline data={sparkData} color={sparkColor} up={sparkUp} seed={seed} width={96} height={36} />
+        <div className="hidden shrink-0 opacity-90 transition-opacity duration-300 group-hover:opacity-100 sm:block">
+          <Sparkline data={sparkData} color={sparkColor} up={sparkUp} seed={seed} width={80} height={32} />
         </div>
       </div>
 

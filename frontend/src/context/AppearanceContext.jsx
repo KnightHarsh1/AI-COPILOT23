@@ -104,6 +104,10 @@ export const THEMES = [
 ];
 const THEME_BY_ID = THEMES.reduce((m, t) => ((m[t.id] = t), m), {});
 
+// Appearance modes bind to a fixed theme. Light → Aurora Mist, Dark → Cosmic
+// Nexus. Custom lets the user pick any theme from the gallery.
+export const MODE_THEME = { light: "aurora", dark: "cosmic" };
+
 // Font choices. `stack` is the CSS font-family applied to --font-sans/display.
 export const FONTS = [
   { id: "inter", label: "Inter", stack: "'Inter', system-ui, sans-serif" },
@@ -128,6 +132,7 @@ export const DEFAULT_WIDGET_ORDER = DASHBOARD_WIDGETS.map((w) => w.id);
 
 export const DEFAULT_APPEARANCE = {
   theme: "midnight",              // full theme palette (see THEMES)
+  appearanceMode: "custom",       // light → Aurora Mist, dark → Cosmic Nexus, custom → pick freely
   fontFamily: "jakarta",          // Plus Jakarta Sans default (Executive Neon)
   sidebarMode: "expanded",        // expanded | compact | auto
   carouselRotationMs: 7000,       // hero carousel auto-rotate interval (0 = off)
@@ -151,6 +156,7 @@ export const DEFAULT_APPEARANCE = {
 const VALID = {
   theme: THEMES.map((t) => t.id),
   fontFamily: FONTS.map((f) => f.id),
+  appearanceMode: ["light", "dark", "custom"],
   sidebarMode: ["expanded", "compact", "auto"],
   carouselRotationMs: [0, 5000, 7000, 10000, 15000],
   dashboardTheme: ["classic", "modern", "executive", "finance", "command"],
@@ -222,6 +228,20 @@ export function AppearanceProvider({ children }) {
     root.setAttribute("data-sidebar-mode", appearance.sidebarMode);
   }, [appearance.density, appearance.animationLevel, appearance.sidebarMode]);
 
+  // Migration / enforcement: if the saved mode is light or dark, the bound
+  // theme must win even for existing users whose stored theme differs. Runs
+  // whenever the mode changes (including initial load from storage/server).
+  useEffect(() => {
+    const forced = MODE_THEME[appearance.appearanceMode];
+    if (forced && appearance.theme !== forced) {
+      setAppearance((prev) => {
+        const next = sanitize({ ...prev, theme: forced });
+        persist(next);
+        return next;
+      });
+    }
+  }, [appearance.appearanceMode]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Apply the full theme palette so the whole UI re-skins.
   useEffect(() => {
     const root = document.documentElement;
@@ -286,6 +306,19 @@ export function AppearanceProvider({ children }) {
   const update = useCallback((patch) => {
     setAppearance((prev) => {
       const next = sanitize({ ...prev, ...patch });
+      persist(next);
+      return next;
+    });
+  }, [persist]);
+
+  // Set the appearance mode. Light/Dark force their bound theme; Custom leaves
+  // the current theme in place so the user can pick freely. Both the mode and
+  // the resulting theme are persisted together.
+  const setMode = useCallback((mode) => {
+    if (!["light", "dark", "custom"].includes(mode)) return;
+    setAppearance((prev) => {
+      const forced = MODE_THEME[mode];
+      const next = sanitize({ ...prev, appearanceMode: mode, ...(forced ? { theme: forced } : {}) });
       persist(next);
       return next;
     });
@@ -373,11 +406,11 @@ export function AppearanceProvider({ children }) {
 
   const value = useMemo(
     () => ({
-      appearance, update, reset,
+      appearance, update, reset, setMode,
       toggleWidget, moveWidget, setWidgetOrder, resetWidgets,
       presets, savePreset, applyPreset, renamePreset, deletePreset, setDefaultPreset,
     }),
-    [appearance, update, reset, toggleWidget, moveWidget, setWidgetOrder, resetWidgets, presets, savePreset, applyPreset, renamePreset, deletePreset, setDefaultPreset]
+    [appearance, update, reset, setMode, toggleWidget, moveWidget, setWidgetOrder, resetWidgets, presets, savePreset, applyPreset, renamePreset, deletePreset, setDefaultPreset]
   );
 
   return <AppearanceContext.Provider value={value}>{children}</AppearanceContext.Provider>;
