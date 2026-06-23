@@ -29,7 +29,7 @@ import CashKpiStrip from "../components/command/CashKpiStrip";
 import CustomerIntelligenceCard from "../components/command/CustomerIntelligenceCard";
 import OpportunityCard from "../components/command/OpportunityCard";
 import GstCard from "../components/command/GstCard";
-import CeoBriefing from "../components/command/CeoBriefing";
+import ExecutiveCarousel from "../components/command/ExecutiveCarousel";
 import RisksOpportunities from "../components/command/RisksOpportunities";
 import HealthScoreExplainer from "../components/command/HealthScoreExplainer";
 import MoneySummaryBar from "../components/command/MoneySummaryBar";
@@ -65,6 +65,7 @@ function CommandCenterPage() {
     return ["today", "risks", "actions", "intelligence", "goals"].includes(p) ? p : "today";
   });
   const [scoreChange, setScoreChange] = useState(null);
+  const [brief, setBrief] = useState(null);
   const [actionLevel, setActionLevel] = useState(() => {
     if (typeof window === "undefined") return "all";
     return new URLSearchParams(window.location.search).get("level") || "all";
@@ -104,6 +105,8 @@ function CommandCenterPage() {
     }
     // Score change powers the CEO briefing's "improved from X to Y" line.
     GrowthService.getScoreChange().then(setScoreChange).catch(() => setScoreChange(null));
+    // Proactive brief feeds the carousel's "AI CFO Says" slide.
+    GrowthService.getProactiveBrief().then(setBrief).catch(() => setBrief(null));
   }, []);
 
   useEffect(() => {
@@ -187,7 +190,9 @@ function CommandCenterPage() {
               )}
 
               {/* 1. GREETING HERO — executive hero section, above the tabs */}
-              <CeoBriefing data={data} user={user} scoreChange={scoreChange} />
+              {/* 1. EXECUTIVE CAROUSEL — auto-rotating hero (Executive Brief /
+                  AI CFO Says / Business Attention), matching the reference. */}
+              <ExecutiveCarousel data={data} user={user} brief={brief} />
 
               {/* 2. TAB NAVIGATION — directly below the greeting */}
               <div id="dashboard-tabs" className="glass-card flex gap-1 overflow-x-auto rounded-pill p-1.5">
