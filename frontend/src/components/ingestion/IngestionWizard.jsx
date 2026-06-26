@@ -33,6 +33,7 @@ function IngestionWizard({ onComplete }) {
   const [bankLast4, setBankLast4] = useState('');
   const [commitResult, setCommitResult] = useState(null);
   const [error, setError] = useState(null);
+  const [errorRecoverable, setErrorRecoverable] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [showForceModal, setShowForceModal] = useState(false);
   const [forceReason, setForceReason] = useState('');
@@ -58,7 +59,8 @@ function IngestionWizard({ onComplete }) {
       setMapping(result.suggested_mapping || []);
       setStep('review');
     } catch (err) {
-      setError(err?.response?.data?.detail || 'Could not analyze this file. Check the format and try again.');
+      setError(typeof err?.response?.data?.detail === 'string' ? err.response.data.detail : 'Could not analyze this file. Check the format and try again.');
+      setErrorRecoverable(false);
       setStep('error');
     }
   };
@@ -108,7 +110,38 @@ function IngestionWizard({ onComplete }) {
   const issues = detectIssues();
   const hasIssues = issues.length > 0;
 
-  const runImport = async ({ force }) => {
+  // Normalises a thrown API error into { message, recoverable }. The backend
+  // sends a structured detail object ({message, recoverable, batch_id}) for
+  // confirm failures; older/other errors may send a plain string. Anything that
+  // isn't explicitly fatal is treated as recoverable so Force Import stays
+  // reachable — Force Import is a recovery path, not a happy-path-only button.
+  const parseError = (err) => {
+    const detail = err?.response?.data?.detail;
+    const status = err?.response?.status;
+    if (detail && typeof detail === 'object') {
+      return {
+        message: detail.message || 'Import could not complete normally.',
+        recoverable: detail.recoverable !== false,
+      };
+    }
+    // Plain-string detail: 400 = fatal (parse/format), everything else (422/500/
+    // network) is treated as recoverable so the user can still force.
+    return {
+      message: (typeof detail === 'string' && detail) || 'Import failed. Please try again.',
+      recoverable: status !== 400,
+    };
+  };
+
+  // Single import path for BOTH normal and force confirm. `force` toggles the
+  // backend force flag; the uploaded batch_id (recovery state) is always reused
+  // from analyzeResult, so a failed normal import never loses session state.
+  const doConfirm = async ({ force }) => {
+    if (!analyzeResult?.batch_id) {
+      setError('Upload session was lost. Please re-upload the file.');
+      setErrorRecoverable(false);
+      setStep('error');
+      return;
+    }
     setShowForceModal(false);
     setStep('confirming');
     try {
@@ -127,29 +160,15 @@ function IngestionWizard({ onComplete }) {
       setStep('summary');
       onComplete?.();
     } catch (err) {
-      setError(err?.response?.data?.detail || 'Import failed. Please try again.');
+      const { message, recoverable } = parseError(err);
+      setError(message);
+      setErrorRecoverable(recoverable && !force); // if a forced attempt failed, it's fatal
       setStep('error');
     }
   };
 
-  const handleConfirm = async () => {
-    setStep('confirming');
-    try {
-      const result = await ingestionService.confirm(analyzeResult.batch_id, {
-        mapping: currentMappingDict(),
-        save_mapping: true,
-        statement_date: statementDate || undefined,
-        bank_name: bankName || undefined,
-        bank_account_last4: bankLast4 || undefined,
-      });
-      setCommitResult(result);
-      setStep('summary');
-      onComplete?.();
-    } catch (err) {
-      setError(err?.response?.data?.detail || 'Import failed. Please try again.');
-      setStep('error');
-    }
-  };
+  const runImport = ({ force }) => doConfirm({ force });
+  const handleConfirm = () => doConfirm({ force: false });
 
   const handleReset = () => {
     setStep('drop');
@@ -157,6 +176,7 @@ function IngestionWizard({ onComplete }) {
     setMapping([]);
     setCommitResult(null);
     setError(null);
+    setErrorRecoverable(false);
     setStatementDate('');
     setBankName('');
     setBankLast4('');
@@ -201,11 +221,66 @@ function IngestionWizard({ onComplete }) {
   }
 
   if (step === 'error') {
+    // Recovery screen. When the failure is recoverable AND we still hold the
+    // uploaded batch (session preserved), Force Import is offered as an
+    // independent recovery path that retries the same batch with force=true.
+    const canForce = errorRecoverable && !!analyzeResult?.batch_id;
     return (
       <div className="space-y-4 rounded-card border border-risk-high/30 bg-risk-high/5 p-6">
-        <p className="font-semibold text-risk-high">Import failed</p>
-        <p className="text-sm text-ink-muted">{error}</p>
-        <Button variant="secondary" onClick={handleReset}>Try another file</Button>
+        <p className="font-semibold text-risk-high">{canForce ? 'Import could not complete normally' : 'Import failed'}</p>
+        <p className="text-sm text-ink-muted">{typeof error === 'string' ? error : 'Something went wrong during import.'}</p>
+        {canForce && (
+          <p className="text-sm text-ink-muted">
+            This looks recoverable. You can force the import to bypass non-critical validation and continue, or go back and adjust the mapping.
+          </p>
+        )}
+        <div className="flex flex-wrap items-center gap-3">
+          {canForce && (
+            <button
+              type="button"
+              onClick={() => { setForceReason(forceReason || 'Recovered after import error'); setShowForceModal(true); }}
+              className="inline-flex items-center gap-2 rounded-pill border-2 border-risk-high px-4 py-2 text-sm font-bold text-risk-high transition hover:bg-risk-high/10"
+            >
+              <AlertTriangle size={16} /> Force import
+            </button>
+          )}
+          {canForce && analyzeResult?.document_type !== 'unknown' && (
+            <Button onClick={() => setStep('review')}>Back to mapping</Button>
+          )}
+          <Button variant="secondary" onClick={handleReset}>Try another file</Button>
+        </div>
+
+        {/* Force Import modal is also reachable from the recovery screen, so the
+            force flag + reason flow identically to the normal path. */}
+        {showForceModal && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" role="dialog" aria-modal="true">
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowForceModal(false)} />
+            <div className="relative w-full max-w-lg rounded-card border border-risk-high/40 bg-surface p-6 shadow-2xl">
+              <div className="flex items-center gap-2 text-risk-high">
+                <AlertTriangle size={22} />
+                <h3 className="font-display text-lg font-bold">Force Import — recovery</h3>
+              </div>
+              <p className="mt-3 text-sm text-ink-muted">The normal import failed with a recoverable error. Force Import will bypass non-critical validation and import everything that can be parsed.</p>
+              <div className="mt-4 rounded-xl border border-border bg-bg-subtle p-4">
+                <p className="text-xs font-bold uppercase tracking-wide text-ink-muted">Reported error</p>
+                <p className="mt-1 text-sm text-ink">{typeof error === 'string' ? error : 'Import error'}</p>
+              </div>
+              <div className="mt-4">
+                <label className="text-xs font-semibold uppercase tracking-wide text-ink-muted">Reason (stored in audit log)</label>
+                <input
+                  value={forceReason}
+                  onChange={(e) => setForceReason(e.target.value)}
+                  placeholder="Why are you forcing this import?"
+                  className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div className="mt-5 flex justify-end gap-3">
+                <button type="button" onClick={() => setShowForceModal(false)} className="rounded-pill px-4 py-2 text-sm font-semibold text-ink-muted hover:bg-bg-subtle">Cancel</button>
+                <button type="button" onClick={() => runImport({ force: true })} className="rounded-pill bg-risk-high px-4 py-2 text-sm font-bold text-white hover:opacity-90">Proceed anyway</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

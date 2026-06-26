@@ -268,7 +268,30 @@ async def confirm_batch(
         # no-op, not an error.
         return IngestionCommitResult(message="This batch was already imported.")
 
+    # A previous recoverable failure may have left the batch marked 'failed'.
+    # Force Import is the recovery path: clear the failed marker so the
+    # orchestrator can re-run against the same staged rows with force=true.
+    if batch.status == 'failed' and payload.force:
+        batch.status = 'ready'
+        batch.error_message = None
+        db.commit()
+
     orchestrator = IngestionOrchestratorService(db)
+
+    # Fatal errors block any import (force included): unreadable/corrupt file,
+    # unsupported format, missing required columns, auth/DB failures. Everything
+    # else is recoverable — the frontend may retry with force=true. We signal
+    # this with a structured 422 carrying recoverable=True + the batch_id so the
+    # Force Import recovery path never loses session state.
+    _FATAL_MARKERS = (
+        'unsupported', 'corrupt', 'cannot be parsed', 'cannot parse',
+        'password', 'unreadable', 'empty file', 'no rows', 'missing required',
+        'authentication', 'database connection', 'could not connect',
+    )
+
+    def _is_fatal(message: str) -> bool:
+        m = (message or '').lower()
+        return any(marker in m for marker in _FATAL_MARKERS)
 
     try:
         result = orchestrator.confirm(
@@ -282,13 +305,47 @@ async def confirm_batch(
             force=payload.force,
             force_reason=payload.force_reason,
         )
-    except Exception as exc:
+    except ParseError as exc:
+        # Parsing failure is fatal — force cannot recover an unreadable file.
         db.rollback()
-        logger.error("Ingestion confirm failed: %s", exc)
+        logger.error("Ingestion confirm parse error: %s", exc)
         batch.status = 'failed'
         batch.error_message = str(exc)
         db.commit()
-        raise HTTPException(status_code=500, detail="Could not commit this import.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={'message': str(exc), 'recoverable': False, 'batch_id': str(batch.id)},
+        )
+    except Exception as exc:
+        db.rollback()
+        message = str(exc)
+        fatal = _is_fatal(message)
+        logger.error("Ingestion confirm failed (force=%s, fatal=%s): %s", payload.force, fatal, message)
+        # Keep the batch in a re-confirmable state on recoverable errors so the
+        # Force Import retry can reuse the same staged batch. Only mark 'failed'
+        # when fatal or when even a forced attempt has already failed.
+        if fatal or payload.force:
+            batch.status = 'failed'
+            batch.error_message = message
+        else:
+            batch.status = 'ready'  # still confirmable; awaiting a force retry
+            batch.error_message = message
+        db.commit()
+        if fatal:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={'message': 'This file cannot be imported (fatal error).', 'recoverable': False, 'batch_id': str(batch.id)},
+            )
+        # Recoverable: tell the frontend it may retry with force.
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                'message': message or 'Import could not complete normally.',
+                'recoverable': True,
+                'batch_id': str(batch.id),
+                'force_available': True,
+            },
+        )
 
     return result
 
