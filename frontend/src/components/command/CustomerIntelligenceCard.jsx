@@ -1,4 +1,8 @@
 import { formatCurrency } from "../../utils/formatters";
+import { ExplainTooltip } from "../common/ExplainTooltip";
+import TrustFooter from "./TrustFooter";
+import HealthImpactBadge from "./HealthImpactBadge";
+import { RFMScatter } from "./IntelVisualizations";
 
 // Customer Intelligence widget — renders only when customer-attributed sales
 // exist (data.customers.available). All figures live from
@@ -55,7 +59,7 @@ function CustomerList({ title, rows, valueFmt, emptyText }) {
   );
 }
 
-function CustomerIntelligenceCard({ customers }) {
+function CustomerIntelligenceCard({ customers, healthImpact }) {
   if (!customers || !customers.available) return null;
   const d = customers;
   const alerts = d.alerts || {};
@@ -148,20 +152,44 @@ function CustomerIntelligenceCard({ customers }) {
       {/* Repeat + LTV + segments */}
       <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="rounded-xl border border-border bg-bg-subtle px-4 py-3">
-          <p className="text-xs text-ink-muted">Repeat rate</p>
+          <p className="flex items-center gap-1 text-xs text-ink-muted">Repeat rate
+            <ExplainTooltip title="Repeat Purchase Rate" hint="Share of customers who bought more than once." detail={{ formula: "repeat customers / total customers × 100", sources: ["Sales"], confidence: 80 }} />
+          </p>
           <p className="figure mt-0.5 text-lg font-bold text-ink">{d.repeat_analysis?.repeat_rate_pct}%</p>
         </div>
         <div className="rounded-xl border border-border bg-bg-subtle px-4 py-3">
-          <p className="text-xs text-ink-muted">Avg lifetime value</p>
+          <p className="flex items-center gap-1 text-xs text-ink-muted">Avg lifetime value
+            <ExplainTooltip title="Customer Lifetime Value" hint="Average revenue per customer to date." detail={{ formula: "total revenue / customer count", sources: ["Sales"], confidence: 70 }} />
+          </p>
           <p className="figure mt-0.5 text-lg font-bold text-ink">{formatCurrency(d.avg_lifetime_value || 0)}</p>
         </div>
-        {(d.segments || []).slice(0, 2).map((s) => (
-          <div key={s.segment} className="rounded-xl border border-border bg-bg-subtle px-4 py-3">
-            <p className="text-xs text-ink-muted">{s.segment} customers</p>
-            <p className="figure mt-0.5 text-lg font-bold text-ink">{s.count}</p>
-          </div>
-        ))}
+        <div className="rounded-xl border border-border bg-bg-subtle px-4 py-3">
+          <p className="flex items-center gap-1 text-xs text-ink-muted">Churn risk
+            <ExplainTooltip title="Churn Risk" hint="Customers idle 60–119 days (slipping away)." detail={{ formula: "count of customers idle 60–119 days", sources: ["Sales"], confidence: 65 }} />
+          </p>
+          <p className="figure mt-0.5 text-lg font-bold text-ink">{d.churn_risk?.count ?? 0}<span className="text-xs text-ink-muted"> ({d.churn_risk?.pct ?? 0}%)</span></p>
+        </div>
+        <div className="rounded-xl border border-border bg-bg-subtle px-4 py-3">
+          <p className="text-xs text-ink-muted">Champions</p>
+          <p className="figure mt-0.5 text-lg font-bold text-ink">{d.rfm_segments?.Champions ?? 0}</p>
+        </div>
       </div>
+
+      {/* RFM segments */}
+      {d.rfm_segments && (
+        <div className="mt-4">
+          <RFMScatter rfm={d.rfm_segments} />
+        </div>
+      )}
+
+      <HealthImpactBadge points={healthImpact} />
+      <TrustFooter
+        sources={["Sales Register"]}
+        confidence={Math.round(d.customer_health_score || 0) >= 70 ? 78 : 60}
+        lastUpdated={d.last_updated || "Latest import"}
+        explanation="Customer KPIs (CLV, RFM, churn, repeat rate) are computed from customer-attributed sales history."
+        warning={d.churn_risk?.count > 0 ? `${d.churn_risk.count} customer(s) at churn risk` : undefined}
+      />
     </section>
   );
 }

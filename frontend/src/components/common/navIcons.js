@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Database, BarChart3, Bot, Settings as SettingsIcon,
   Sun, ShieldAlert, CheckSquare, Brain, Target,
   Users, Package, Wallet, Building2, TrendingUp, Coins, ClipboardCheck,
-  Receipt, Rocket, Radar,
+  Receipt, Rocket, Radar, Landmark, Scale, LineChart, Crown,
 } from "lucide-react";
 
 // Top-level navigation groups.
@@ -31,6 +31,7 @@ export const INTEL_ICONS = {
   customer: Users,
   product: Package,        // Inventory Intelligence
   cashflow: Wallet,
+  liquidity: Landmark,    // Banking & Liquidity
   financial: Building2,    // Financial Position
   profit: TrendingUp,      // Profitability
   collections: Coins,
@@ -38,4 +39,8 @@ export const INTEL_ICONS = {
   gst: Receipt,
   opportunity: Rocket,
   market: Radar,
+  workingcapital: Scale,
+  forecasting: LineChart,
+  risk: ShieldAlert,
+  executive: Crown,
 };

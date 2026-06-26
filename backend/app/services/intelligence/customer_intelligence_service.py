@@ -159,6 +159,30 @@ class CustomerIntelligenceService:
         # collection health and retention (few lost).
         health = self._customer_health(top_share, repeat_rate, customers, lost, total_revenue)
 
+        # RFM-style behavioural segments from recency / frequency / revenue.
+        rfm = {'Champions': [], 'Loyal': [], 'At Risk': [], 'Lost': [], 'Growing': []}
+        for c in customers:
+            recency = c['days_since_last_order']
+            growth = c['growth_pct']
+            if recency is not None and recency >= 120:
+                rfm['Lost'].append(c['name'])
+            elif growth is not None and growth >= 25:
+                rfm['Growing'].append(c['name'])
+            elif c['is_repeat'] and (recency is None or recency <= 45):
+                rfm['Champions'].append(c['name'])
+            elif c['is_repeat']:
+                rfm['Loyal'].append(c['name'])
+            elif recency is not None and recency >= 60:
+                rfm['At Risk'].append(c['name'])
+            else:
+                rfm['Loyal'].append(c['name'])
+        rfm_summary = {k: len(v) for k, v in rfm.items()}
+        # Churn risk: customers idle 60-119 days (not yet lost, slipping away).
+        churn_risk_customers = [c['name'] for c in customers
+                                if c['days_since_last_order'] is not None and 60 <= c['days_since_last_order'] < 120]
+        churn_risk_count = len(churn_risk_customers)
+        churn_risk_pct = round(churn_risk_count / customer_count * 100, 1) if customer_count else 0.0
+
         return {
             'available': True,
             'customer_count': customer_count,
@@ -173,6 +197,8 @@ class CustomerIntelligenceService:
             'new_customers': new_customers[:5],
             'repeat_analysis': {'repeat_customers': repeat_count, 'repeat_rate_pct': repeat_rate, 'one_time': customer_count - repeat_count},
             'avg_lifetime_value': round(avg_ltv, 2),
+            'rfm_segments': rfm_summary,
+            'churn_risk': {'count': churn_risk_count, 'pct': churn_risk_pct, 'customers': churn_risk_customers[:8]},
             'segments': segments,
             'alerts': self._alerts(customers, lost, declining, fast_growing, dependency),
         }

@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Database, Calculator, Calendar, Clock, FileText, Activity } from "lucide-react";
 import ConfidenceIndicator from "./ConfidenceIndicator";
@@ -24,6 +25,21 @@ function Field({ icon: Icon, label, children }) {
 
 function DrillDownDrawer({ open, onClose, title, detail }) {
   const d = detail || {};
+  const renderCount = useRef(0);
+  renderCount.current += 1;
+  if (typeof window !== "undefined" && window.__EXPLAIN_DEBUG && open) {
+    console.log(`[DrillDownDrawer:${title || "?"}] render #${renderCount.current} open=${open}`);
+  }
+  // Lock background scroll while the drawer is open so the page behind can't
+  // scroll or emit layout/scroll events (which previously fed a reposition
+  // loop in the explain popover). Restored on close/unmount.
+  useEffect(() => {
+    if (!open) return undefined;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, [open]);
+
   return (
     <AnimatePresence>
       {open && (

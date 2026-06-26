@@ -1,0 +1,11 @@
+﻿vendor,amount,category,incurred_date
+Amazon,2000000,Office Supplies,01-06-2026
+Flipkart,1500,Office Supplies,02-06-2026
+HP,3000,Equipment,03-06-2026
+Dell,2500,Equipment,04-06-2026
+Internet Provider,1000,Utilities,05-06-2026
+Electricity Board,1800,Utilities,06-06-2026
+Stationery Shop,700,Office Supplies,07-06-2026
+Courier Service,1200,Logistics,08-06-2026
+Printer Vendor,900,Maintenance,09-06-2026
+Cloud Hosting,1400,Software,10-06-2026

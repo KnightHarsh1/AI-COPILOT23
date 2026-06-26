@@ -78,6 +78,11 @@ export function ExplainTooltip({ title, hint, detail, children, className = "" }
   const [mobile, setMobile] = useState(false);
   const triggerRef = useRef(null);
   const closeTimer = useRef(null);
+  const renderCount = useRef(0);
+  renderCount.current += 1;
+  if (typeof window !== "undefined" && window.__EXPLAIN_DEBUG) {
+    console.log(`[ExplainTooltip:${title || "?"}] render #${renderCount.current} open=${open} drawer=${drawer}`);
+  }
 
   const computePosition = useCallback(() => {
     const el = triggerRef.current;
@@ -87,27 +92,42 @@ export function ExplainTooltip({ title, hint, detail, children, className = "" }
     let placement = "right";
     let left = r.right + gap;
     let top = r.top + r.height / 2 - ph / 2;
-    // Flip left if not enough room on the right.
     if (left + pw > window.innerWidth - 8) { placement = "left"; left = r.left - pw - gap; }
-    // If still off-screen (narrow), center under the trigger.
     if (left < 8) { left = Math.max(8, Math.min(window.innerWidth - pw - 8, r.left)); top = r.bottom + gap; placement = "bottom"; }
-    // Clamp vertically.
     top = Math.max(8, Math.min(window.innerHeight - ph - 8, top));
-    setCoords({ top, left, placement });
+    // Only update state if the position actually changed — prevents a re-render
+    // storm when scroll/resize fire rapidly during another panel's animation.
+    setCoords((prev) => (prev.top === top && prev.left === left && prev.placement === placement ? prev : { top, left, placement, gap }));
   }, []);
 
+  const clearCloseTimer = () => { if (closeTimer.current) { clearTimeout(closeTimer.current); closeTimer.current = null; } };
+
   const doOpen = () => {
-    if (closeTimer.current) clearTimeout(closeTimer.current);
+    clearCloseTimer();
     const m = isMobile();
     setMobile(m);
     if (!m) computePosition();
     setOpen(true);
+    if (typeof window !== "undefined" && window.__EXPLAIN_DEBUG) console.log(`[ExplainTooltip:${title || "?"}] popover opened (mobile=${m})`);
   };
-  const doClose = () => { setOpen(false); };
-  const delayedClose = () => { closeTimer.current = setTimeout(() => setOpen(false), 120); };
+  const doClose = () => { clearCloseTimer(); setOpen(false); };
+  const delayedClose = () => {
+    clearCloseTimer();
+    // Never auto-close via hover once the full drawer is open — the drawer owns
+    // the screen and the popover must stay dismissed, not flicker.
+    if (drawer) return;
+    // 220ms gives the cursor time to travel the gap between the trigger and the
+    // floating panel without the panel closing underneath it.
+    closeTimer.current = setTimeout(() => setOpen(false), 220);
+  };
 
+  // Reposition on scroll/resize ONLY while the hover popover is open AND the
+  // full drawer is NOT open. The drawer's slide + backdrop-blur emit layout
+  // events; listening during that window caused setCoords→re-render→
+  // AnimatePresence remount loops (the left-side blinking). Guarding on
+  // `!drawer` removes the loop at its source.
   useEffect(() => {
-    if (!open || mobile) return undefined;
+    if (!open || mobile || drawer) return undefined;
     const onScrollResize = () => computePosition();
     window.addEventListener("scroll", onScrollResize, true);
     window.addEventListener("resize", onScrollResize);
@@ -118,19 +138,32 @@ export function ExplainTooltip({ title, hint, detail, children, className = "" }
       window.removeEventListener("resize", onScrollResize);
       document.removeEventListener("keydown", onKey);
     };
-  }, [open, mobile, computePosition]);
+  }, [open, mobile, drawer, computePosition]);
 
-  const openMore = () => { setOpen(false); setDrawer(true); };
+  // "View source data": dismiss the hover popover and open the drawer in one
+  // commit. Cancel any pending close timer so it can't fire mid-transition.
+  const openMore = () => {
+    clearCloseTimer();
+    setOpen(false);
+    setDrawer(true);
+    if (typeof window !== "undefined" && window.__EXPLAIN_DEBUG) console.log(`[ExplainTooltip:${title || "?"}] source drawer opened`);
+  };
+  const closeDrawer = () => {
+    setDrawer(false);
+    if (typeof window !== "undefined" && window.__EXPLAIN_DEBUG) console.log(`[ExplainTooltip:${title || "?"}] source drawer closed`);
+  };
 
   return (
-    <span className={`group/explain relative inline-flex items-center gap-1.5 ${className}`}>
+    <span
+      className={`group/explain relative inline-flex items-center gap-1.5 ${className}`}
+      onMouseEnter={() => { if (!isMobile()) doOpen(); }}
+      onMouseLeave={() => { if (!isMobile()) delayedClose(); }}
+    >
       {children}
       <button
         ref={triggerRef}
         type="button"
         aria-label={`Explain ${title || "this number"}`}
-        onMouseEnter={() => { if (!isMobile()) doOpen(); }}
-        onMouseLeave={() => { if (!isMobile()) delayedClose(); }}
         onClick={(e) => { e.stopPropagation(); open ? doClose() : doOpen(); }}
         className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-border text-ink-muted opacity-60 transition hover:border-primary hover:text-primary group-hover/explain:opacity-100"
       >
@@ -139,21 +172,34 @@ export function ExplainTooltip({ title, hint, detail, children, className = "" }
 
       {typeof document !== "undefined" && createPortal(
         <AnimatePresence>
-          {open && !mobile && (
+          {open && !mobile && !drawer && (
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
-              style={{ position: "fixed", top: coords.top, left: coords.left, zIndex: 9999 }}
-              onMouseEnter={() => { if (closeTimer.current) clearTimeout(closeTimer.current); }}
+              style={{
+                position: "fixed",
+                top: coords.placement === "bottom" ? coords.top - (coords.gap || 10) : coords.top,
+                left: coords.placement === "left" ? coords.left
+                  : coords.placement === "bottom" ? coords.left
+                  : coords.left - (coords.gap || 10),
+                zIndex: 9999,
+                // Transparent bridge over the trigger→panel gap so the cursor
+                // never crosses dead space (the visible panel sits inside the
+                // padding, so appearance is unchanged).
+                paddingLeft: coords.placement === "right" ? (coords.gap || 10) : 0,
+                paddingRight: coords.placement === "left" ? (coords.gap || 10) : 0,
+                paddingTop: coords.placement === "bottom" ? (coords.gap || 10) : 0,
+              }}
+              onMouseEnter={clearCloseTimer}
               onMouseLeave={delayedClose}
             >
               <ExplainPanel title={title} hint={hint} detail={detail} onClose={doClose} onMore={openMore} />
             </motion.div>
           )}
 
-          {open && mobile && (
+          {open && mobile && !drawer && (
             <>
               <motion.div
                 className="fixed inset-0 z-[9998] bg-black/50 backdrop-blur-sm"
@@ -175,7 +221,7 @@ export function ExplainTooltip({ title, hint, detail, children, className = "" }
         document.body
       )}
 
-      <DrillDownDrawer open={drawer} onClose={() => setDrawer(false)} title={title} detail={detail} />
+      <DrillDownDrawer open={drawer} onClose={closeDrawer} title={title} detail={detail} />
     </span>
   );
 }

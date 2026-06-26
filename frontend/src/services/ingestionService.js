@@ -52,4 +52,17 @@ export const ingestionService = {
     const response = await api.delete(`/ingestion/mapping-templates/${templateId}`);
     return response.data;
   },
+
+  listDataDictionary: async () => {
+    const response = await api.get('/ingestion/data-dictionary');
+    return response.data;
+  },
+  createField: async (payload) => {
+    const response = await api.post('/ingestion/data-dictionary/field', payload);
+    return response.data;
+  },
+  addSynonym: async (payload) => {
+    const response = await api.post('/ingestion/data-dictionary/synonym', payload);
+    return response.data;
+  },
 };

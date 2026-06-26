@@ -67,6 +67,12 @@ class ConfirmRequest(BaseModel):
     # Optional context for bank_statement batches.
     bank_name: Optional[str] = None
     bank_account_last4: Optional[str] = None
+    # Force import: proceed despite low-confidence mappings, missing
+    # recommended fields, duplicate detection or validation warnings. The
+    # reason is stored in the audit log. Critical structural failures still
+    # block; this only bypasses non-critical warnings.
+    force: bool = False
+    force_reason: Optional[str] = None
 
 
 class IngestionCommitResult(BaseModel):
@@ -84,6 +90,8 @@ class IngestionCommitResult(BaseModel):
     message: str = 'Import completed'
     is_duplicate: bool = False
     impact_report: Optional[dict] = None
+    force_imported: bool = False
+    warnings: List[str] = []
 
 
 class BatchStatusResponse(BaseModel):

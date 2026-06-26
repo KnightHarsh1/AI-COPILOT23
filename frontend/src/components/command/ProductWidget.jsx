@@ -2,8 +2,12 @@ import { useState } from "react";
 import Drawer from "./Drawer";
 import ScoreGauge from "../common/charts/ScoreGauge";
 import { formatCurrency, formatCurrencyCompact } from "../../utils/formatters";
+import { ExplainTooltip } from "../common/ExplainTooltip";
+import TrustFooter from "./TrustFooter";
+import HealthImpactBadge from "./HealthImpactBadge";
+import { InventoryRiskMeter, InventoryABCQuadrant } from "./IntelVisualizations";
 
-function ProductWidget({ data }) {
+function ProductWidget({ data, healthImpact }) {
   const [open, setOpen] = useState(false);
 
   if (!data?.available) {
@@ -53,6 +57,28 @@ function ProductWidget({ data }) {
             </p>
           )}
 
+          {/* New inventory KPIs with explain-this-number */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <PStat label="Turnover ratio" value={data.inventory_turnover_ratio != null ? `${data.inventory_turnover_ratio}×` : "—"}
+              explain={{ title: "Inventory Turnover", hint: "How many times stock sells through per year.", detail: { formula: "(COGS × 4) / inventory value", sources: ["Inventory", "Sales"], confidence: 60 } }} />
+            <PStat label="DIO" value={data.dio != null ? `${data.dio} days` : "—"}
+              explain={{ title: "Days Inventory Outstanding", hint: "Average days stock sits before selling.", detail: { formula: "365 / turnover ratio", sources: ["Inventory", "Sales"], confidence: 60 } }} />
+            <PStat label="Dead stock" value={formatCurrency(data.dead_stock_value || 0)}
+              explain={{ title: "Dead Stock Value", hint: "Capital tied up in unsold stock (90+ days idle).", detail: { formula: "Σ unit cost × qty for idle ≥90d", sources: ["Inventory"], confidence: 75 } }} />
+            <PStat label="Slow moving" value={formatCurrency(data.slow_moving_value || 0)}
+              explain={{ title: "Slow-moving Value", hint: "Stock idle 30–90 days.", detail: { formula: "Σ unit cost × qty for idle 30–90d", sources: ["Inventory"], confidence: 70 } }} />
+            <PStat label="Overstock" value={formatCurrency(data.overstock_value || 0)}
+              explain={{ title: "Overstock Value", hint: "Stock far above reorder level (≥3×).", detail: { formula: "Σ unit cost × qty where qty ≥ 3× reorder", sources: ["Inventory"], confidence: 65 } }} />
+            <PStat label="Stockout risk" value={formatCurrency(data.stockout_risk_value || 0)}
+              explain={{ title: "Stockout Risk Value", hint: "Units at/below reorder level.", detail: { formula: "Σ qty where qty ≤ reorder level", sources: ["Inventory"], confidence: 70 } }} />
+          </div>
+
+          {/* Inventory risk meter */}
+          <InventoryRiskMeter inventoryValue={data.inventory_value} deadValue={data.dead_stock_value} slowValue={data.slow_moving_value} stockoutValue={data.stockout_risk_value} />
+
+          {/* ABC analysis quadrant */}
+          {data.abc_analysis && <InventoryABCQuadrant abc={data.abc_analysis} />}
+
           <ListBlock
             title="Best sellers"
             items={data.best_sellers}
@@ -98,9 +124,30 @@ function ProductWidget({ data }) {
               Your top product is {data.top_product_share}% of linked revenue — consider broadening the range.
             </div>
           )}
+
+          <HealthImpactBadge points={healthImpact} />
+          <TrustFooter
+            sources={["Inventory Register", "Sales Register"]}
+            confidence={Math.round(data.product_health_score || 0) >= 70 ? 78 : 60}
+            lastUpdated={data.last_updated || "Latest import"}
+            explanation="Inventory KPIs (turnover, DIO, ABC, dead/slow/overstock) are computed from your stock register and linked sales."
+            assumptions={data.coverage_note || undefined}
+            warning={data.dead_stock_value > 0 ? `${formatCurrency(data.dead_stock_value)} trapped in dead stock` : undefined}
+          />
         </div>
       </Drawer>
     </>
+  );
+}
+
+function PStat({ label, value, explain }) {
+  return (
+    <div className="min-w-0 rounded-lg bg-bg-subtle px-3 py-2">
+      <p className="flex items-center gap-1 truncate text-xs text-ink-muted">{label}
+        {explain && <ExplainTooltip title={explain.title || label} hint={explain.hint} detail={explain.detail} />}
+      </p>
+      <p className="figure mt-0.5 break-words font-semibold text-ink">{value}</p>
+    </div>
   );
 }
 

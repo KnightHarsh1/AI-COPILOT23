@@ -150,6 +150,7 @@ class CommandCenterService:
                 'liquidity_solvency_score': health.get('liquidity_solvency_score'),
             },
             'components_unavailable': health.get('components_unavailable', []),
+            'health_impact': health.get('health_impact', {}),
             'revenue': summary.get('revenue', 0),
             'net_profit': summary.get('net_profit', 0),
             'expenses': summary.get('expenses', 0),

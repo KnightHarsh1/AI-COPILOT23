@@ -7,6 +7,8 @@ from app.db.models.expense import Expense
 from app.db.models.file import File
 from app.db.models.financial_statement import FinancialStatementLine
 from app.db.models.ingestion import ColumnMappingTemplate, IngestionBatch, StagingRow
+from app.db.models.data_dictionary import DataDictionaryEntry
+from app.db.models.purchase_record import PurchaseRecord
 from app.db.models.growth import Goal, AuditLog, TeamMember
 from app.db.models.inventory import InventoryItem
 from app.db.models.market import MarketSignal, UserMarketInsight

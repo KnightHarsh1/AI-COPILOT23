@@ -274,6 +274,8 @@ class IngestionOrchestratorService:
         statement_date=None,
         bank_name: Optional[str] = None,
         bank_account_last4: Optional[str] = None,
+        force: bool = False,
+        force_reason: Optional[str] = None,
     ) -> IngestionCommitResult:
         # Re-apply the mapping once more so any edit made right up to the
         # confirm click is reflected, then commit from that final state.
@@ -293,9 +295,26 @@ class IngestionOrchestratorService:
             statement_date=statement_date,
             bank_name=bank_name,
             bank_account_last4=bank_account_last4,
+            force=force,
         )
 
         batch.confirmed_by_id = current_user.id
+        if force:
+            result.force_imported = True
+            if not result.message or result.message == 'Import completed':
+                result.message = 'Import completed with warnings'
+            try:
+                batch.impact_report = {
+                    **(batch.impact_report or {}),
+                    'force_imported': True,
+                    'warning_count': len(result.warnings or []),
+                    'warnings': (result.warnings or [])[:20],
+                    'rejected_rows': result.rows_skipped_invalid or 0,
+                    'duplicates': result.duplicates_skipped or 0,
+                    'force_reason': force_reason or None,
+                }
+            except Exception:
+                pass
         self.session.commit()
 
         if save_mapping:
@@ -339,6 +358,13 @@ class IngestionOrchestratorService:
             from app.services.insight_support_service import AuditService
             AuditService(self.session).log(batch.company_id, 'import',
                                            f'Imported {batch.document_type} data', user_id=current_user.id)
+            if force:
+                AuditService(self.session).log(
+                    batch.company_id, 'force_import',
+                    (f"Force imported {batch.document_type}: {force_reason or 'no reason given'} "
+                     f"| imported≈{(result.sales_added or 0) + (result.expenses_added or 0) + (result.customers_added or 0) + (result.inventory_added or 0) + (result.statement_lines_added or 0) + (result.bank_transactions_added or 0)}"
+                     f", rejected={result.rows_skipped_invalid or 0}, duplicates={result.duplicates_skipped or 0}"),
+                    user_id=current_user.id)
             NotificationDispatcher(self.session).run_daily_checks(batch.company_id)
         except Exception:
             pass

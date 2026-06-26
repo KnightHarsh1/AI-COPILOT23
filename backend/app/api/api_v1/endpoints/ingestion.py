@@ -101,6 +101,7 @@ def import_history(db: Session = Depends(get_db), current_user: User = Depends(g
         'created_at': b.created_at.isoformat() if b.created_at else None,
         'committed_at': b.committed_at.isoformat() if b.committed_at else None,
         'impact_report': b.impact_report,
+        'force_imported': bool((b.impact_report or {}).get('force_imported')) if b.impact_report else False,
     } for b in rows]}
 
 # Superset of upload.py's allowed extensions -- .xml is needed for
@@ -278,6 +279,8 @@ async def confirm_batch(
             statement_date=payload.statement_date,
             bank_name=payload.bank_name,
             bank_account_last4=payload.bank_account_last4,
+            force=payload.force,
+            force_reason=payload.force_reason,
         )
     except Exception as exc:
         db.rollback()
@@ -329,3 +332,99 @@ async def delete_mapping_template(
     deleted = MappingMemoryService(db).delete_template(current_user.company_id, template_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Mapping template not found.")
+
+
+# ---------------------------------------------------------------------------
+# Data Dictionary additions from the Mapping Review step.
+# Create New Field and Add Synonym persist here so future imports can use them.
+# ---------------------------------------------------------------------------
+def _norm(text: str) -> str:
+    return ' '.join((text or '').strip().lower().split())
+
+
+@router.get('/data-dictionary')
+def list_data_dictionary(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    from app.db.models.data_dictionary import DataDictionaryEntry
+    rows = (
+        db.query(DataDictionaryEntry)
+        .filter(DataDictionaryEntry.company_id == current_user.company_id)
+        .order_by(DataDictionaryEntry.created_at.desc())
+        .all()
+    )
+    return {
+        'fields': [
+            {'field_name': r.field_name, 'category': r.category, 'description': r.description,
+             'document_type': r.document_type}
+            for r in rows if r.kind == 'field'
+        ],
+        'synonyms': [
+            {'synonym': r.key, 'maps_to': r.maps_to, 'document_type': r.document_type}
+            for r in rows if r.kind == 'synonym'
+        ],
+    }
+
+
+@router.post('/data-dictionary/field', status_code=status.HTTP_201_CREATED)
+def create_dictionary_field(
+    payload: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role('manager')),
+):
+    from app.db.models.data_dictionary import DataDictionaryEntry
+    field_name = (payload.get('field_name') or '').strip()
+    if not field_name:
+        raise HTTPException(status_code=400, detail='field_name is required.')
+    key = _norm(field_name).replace(' ', '_')
+    existing = (
+        db.query(DataDictionaryEntry)
+        .filter(DataDictionaryEntry.company_id == current_user.company_id,
+                DataDictionaryEntry.kind == 'field', DataDictionaryEntry.key == key)
+        .one_or_none()
+    )
+    if existing:
+        return {'created': False, 'field_name': existing.field_name, 'message': 'Field already exists.'}
+    entry = DataDictionaryEntry(
+        company_id=current_user.company_id, kind='field', key=key,
+        field_name=field_name, category=payload.get('category'),
+        description=payload.get('description'), document_type=payload.get('document_type'),
+        created_by_id=current_user.id,
+    )
+    db.add(entry)
+    db.commit()
+    return {'created': True, 'field_name': field_name, 'category': payload.get('category')}
+
+
+@router.post('/data-dictionary/synonym', status_code=status.HTTP_201_CREATED)
+def add_dictionary_synonym(
+    payload: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role('manager')),
+):
+    from app.db.models.data_dictionary import DataDictionaryEntry
+    synonym = (payload.get('synonym') or '').strip()
+    maps_to = (payload.get('maps_to') or '').strip()
+    if not synonym or not maps_to:
+        raise HTTPException(status_code=400, detail='synonym and maps_to are required.')
+    key = _norm(synonym)
+    existing = (
+        db.query(DataDictionaryEntry)
+        .filter(DataDictionaryEntry.company_id == current_user.company_id,
+                DataDictionaryEntry.kind == 'synonym', DataDictionaryEntry.key == key)
+        .one_or_none()
+    )
+    if existing:
+        existing.maps_to = maps_to
+        existing.document_type = payload.get('document_type')
+        db.commit()
+        return {'created': False, 'updated': True, 'synonym': synonym, 'maps_to': maps_to}
+    entry = DataDictionaryEntry(
+        company_id=current_user.company_id, kind='synonym', key=key,
+        maps_to=maps_to, field_name=maps_to, document_type=payload.get('document_type'),
+        created_by_id=current_user.id,
+    )
+    db.add(entry)
+    db.commit()
+    return {'created': True, 'synonym': synonym, 'maps_to': maps_to}

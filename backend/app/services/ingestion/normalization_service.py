@@ -83,19 +83,33 @@ class NormalizationService:
         statement_date: Optional[date_type] = None,
         bank_name: Optional[str] = None,
         bank_account_last4: Optional[str] = None,
+        force: bool = False,
     ) -> IngestionCommitResult:
         result = IngestionCommitResult()
+        # Force import bypasses recoverable validation: rows flagged 'error' by
+        # the validation layer are still attempted (only physically-unparseable
+        # rows are rejected later inside each handler), and duplicates are kept
+        # as warnings instead of being skipped.
+        self._force = force
 
-        valid_rows = (
-            self.session.query(StagingRow)
-            .filter(StagingRow.batch_id == batch.id, StagingRow.validation_status != 'error')
-            .all()
-        )
-        error_row_count = (
-            self.session.query(StagingRow)
-            .filter(StagingRow.batch_id == batch.id, StagingRow.validation_status == 'error')
-            .count()
-        )
+        if force:
+            valid_rows = (
+                self.session.query(StagingRow)
+                .filter(StagingRow.batch_id == batch.id)
+                .all()
+            )
+            error_row_count = 0
+        else:
+            valid_rows = (
+                self.session.query(StagingRow)
+                .filter(StagingRow.batch_id == batch.id, StagingRow.validation_status != 'error')
+                .all()
+            )
+            error_row_count = (
+                self.session.query(StagingRow)
+                .filter(StagingRow.batch_id == batch.id, StagingRow.validation_status == 'error')
+                .count()
+            )
 
         handlers = {
             'sales': self._commit_sales,
@@ -126,6 +140,15 @@ class NormalizationService:
         handler(valid_rows, result)
 
         result.rows_skipped_invalid = error_row_count
+        # Under force import, duplicates are kept; report them as warnings.
+        if force:
+            result.force_imported = True
+            warn = []
+            if result.duplicates_skipped:
+                warn.append(f"{result.duplicates_skipped} duplicate row(s) imported")
+            if result.rows_skipped_invalid:
+                warn.append(f"{result.rows_skipped_invalid} unparseable row(s) rejected")
+            result.warnings = (result.warnings or []) + warn
         if statement_date is None and batch.document_type in ('balance_sheet', 'profit_and_loss'):
             result.message = (
                 f"{result.message} No statement date was provided, so today's date was used -- "
@@ -199,7 +222,8 @@ class NormalizationService:
             )
             if existing:
                 result.duplicates_skipped += 1
-                continue
+                if not getattr(self, '_force', False):
+                    continue
 
             # Collections fields (additive). Only set when the upload
             # actually provided them; otherwise leave the safe defaults
@@ -307,7 +331,8 @@ class NormalizationService:
             )
             if existing:
                 result.duplicates_skipped += 1
-                continue
+                if not getattr(self, '_force', False):
+                    continue
 
             self.session.add(Expense(
                 company_id=row.batch.company_id,
@@ -346,7 +371,8 @@ class NormalizationService:
                 existing.phone = data.get('phone') or existing.phone
                 existing.address = data.get('address') or existing.address
                 result.duplicates_skipped += 1
-                continue
+                if not getattr(self, '_force', False):
+                    continue
 
             self.session.add(Customer(
                 company_id=row.batch.company_id,
@@ -391,7 +417,8 @@ class NormalizationService:
                     existing.reorder_level = int(reorder_level)
                 existing.location = data.get('location') or existing.location
                 result.duplicates_skipped += 1
-                continue
+                if not getattr(self, '_force', False):
+                    continue
 
             self.session.add(InventoryItem(
                 company_id=row.batch.company_id,
@@ -442,7 +469,8 @@ class NormalizationService:
                 # semantics for a restated or corrected statement.
                 existing.amount = amount
                 result.duplicates_skipped += 1
-                continue
+                if not getattr(self, '_force', False):
+                    continue
 
             self.session.add(FinancialStatementLine(
                 company_id=batch.company_id,
@@ -489,7 +517,8 @@ class NormalizationService:
             )
             if existing:
                 result.duplicates_skipped += 1
-                continue
+                if not getattr(self, '_force', False):
+                    continue
 
             self.session.add(BankTransaction(
                 company_id=batch.company_id,

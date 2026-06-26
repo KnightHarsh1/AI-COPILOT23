@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, LogOut, Sun, Moon, Monitor } from 'lucide-react';
+import { Menu, X, LogOut } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { useTheme } from '../../context/ThemeContext';
+import ThemeToggle from './ThemeToggle';
 import { navItems } from '../../constants/nav';
 import { NAV_ICONS } from './navIcons';
 import NotificationBell from './NotificationBell';
@@ -11,12 +11,8 @@ import AvatarMenu from './AvatarMenu';
 import FloatingAssistant from './FloatingAssistant';
 import MotionBackground from './MotionBackground';
 
-const THEME_CYCLE = ['light', 'dark', 'system'];
 
 const ICONS = {
-  sun: <Sun size={16} strokeWidth={2} />,
-  moon: <Moon size={16} strokeWidth={2} />,
-  system: <Monitor size={16} strokeWidth={2} />,
   menu: <Menu size={20} strokeWidth={2} />,
   close: <X size={20} strokeWidth={2} />,
   logout: <LogOut size={16} strokeWidth={2} />,
@@ -26,13 +22,7 @@ function Navbar() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { logout, user } = useAuth();
-  const { theme, setTheme } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
-
-  const cycleTheme = () => {
-    const next = THEME_CYCLE[(THEME_CYCLE.indexOf(theme) + 1) % THEME_CYCLE.length];
-    setTheme(next);
-  };
 
   const handleLogout = () => {
     logout();
@@ -79,15 +69,7 @@ function Navbar() {
         </nav>
 
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={cycleTheme}
-            title={`Theme: ${theme}`}
-            className="rounded-full p-2 text-ink-muted hover:bg-bg-subtle hover:text-ink"
-            aria-label="Toggle theme"
-          >
-            {ICONS[theme]}
-          </button>
+          <ThemeToggle />
           <NavbarSetupPill />
           <NotificationBell />
           <AvatarMenu user={user} onLogout={handleLogout} />

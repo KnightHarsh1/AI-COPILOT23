@@ -118,6 +118,19 @@ class ProfitLossService:
                 score = min(score, 40)
             profitability_score = float(max(0, min(100, round(score))))
 
+        # Contribution margin & break-even. Treat gross profit as the
+        # contribution proxy (revenue − variable/COGS); operating-or-fixed costs
+        # = the gap between gross and net profit. Break-even revenue =
+        # fixed_costs / contribution_margin_ratio.
+        revenue_v = f['revenue'] or 0
+        gross_v = f['gross_profit'] or 0
+        net_v = f['net_profit'] or 0
+        contribution_margin_ratio = round((gross_v / revenue_v) * 100, 1) if revenue_v else None
+        fixed_costs = max(0.0, gross_v - net_v)
+        break_even_revenue = None
+        if contribution_margin_ratio and contribution_margin_ratio > 0:
+            break_even_revenue = round(fixed_costs / (contribution_margin_ratio / 100.0), 2)
+
         return {
             'available': True,
             'statement_date': f['statement_date'],
@@ -130,6 +143,9 @@ class ProfitLossService:
             'operating_margin': operating_margin,
             'net_margin': net_margin,
             'ebitda_margin': ebitda_margin,
+            'contribution_margin': gross_v,
+            'contribution_margin_ratio': contribution_margin_ratio,
+            'break_even_revenue': break_even_revenue,
             'profitability_score': profitability_score,
         }
 

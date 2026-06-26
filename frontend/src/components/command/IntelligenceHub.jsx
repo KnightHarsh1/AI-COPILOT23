@@ -11,6 +11,10 @@ import MarketRadarWidget from "./MarketRadarWidget";
 import BalanceSheetCard from "./BalanceSheetCard";
 import CashFlowCard from "./CashFlowCard";
 import ProfitabilityCard from "./ProfitabilityCard";
+import BankingLiquidityCard from "./BankingLiquidityCard";
+import ModuleIntelligenceCard from "./ModuleIntelligenceCard";
+import CommandCenterService from "../../services/commandCenterService";
+import { Scale, LineChart, ShieldAlert, Crown } from "lucide-react";
 import InsightsPanel from "../appearance/InsightsPanel";
 
 // Intelligence Hub — a two-level navigation that eliminates the long scroll.
@@ -21,6 +25,7 @@ import InsightsPanel from "../appearance/InsightsPanel";
 const CATEGORIES = [
   { id: "customer", label: "Customer Intelligence", short: "Customer" },
   { id: "cashflow", label: "Cash Flow Intelligence", short: "Cash Flow" },
+  { id: "liquidity", label: "Banking & Liquidity", short: "Liquidity" },
   { id: "financial", label: "Financial Position", short: "Financial" },
   { id: "collections", label: "Collections Intelligence", short: "Collections" },
   { id: "product", label: "Inventory Intelligence", short: "Inventory" },
@@ -29,6 +34,10 @@ const CATEGORIES = [
   { id: "gst", label: "GST Intelligence", short: "GST" },
   { id: "opportunity", label: "Opportunity Intelligence", short: "Opportunity" },
   { id: "market", label: "Market Radar", short: "Market" },
+  { id: "workingcapital", label: "Working Capital Intelligence", short: "Working Capital" },
+  { id: "forecasting", label: "Forecasting Intelligence", short: "Forecasting" },
+  { id: "risk", label: "Risk Intelligence", short: "Risk" },
+  { id: "executive", label: "Executive Intelligence", short: "Executive" },
 ];
 
 function EmptyModule({ label }) {
@@ -41,7 +50,7 @@ function EmptyModule({ label }) {
 }
 
 function IntelligenceHub({ data, onSetup, onProfile, onReload, insightsStyle, initialCategory }) {
-  const VALID = ["customer", "cashflow", "financial", "collections", "product", "profit", "compliance", "gst", "opportunity", "market"];
+  const VALID = ["customer", "cashflow", "liquidity", "financial", "collections", "product", "profit", "compliance", "gst", "opportunity", "market", "workingcapital", "forecasting", "risk", "executive"];
   const [cat, setCat] = useState(VALID.includes(initialCategory) ? initialCategory : "customer");
   useEffect(() => {
     if (VALID.includes(initialCategory)) setCat(initialCategory);
@@ -51,6 +60,7 @@ function IntelligenceHub({ data, onSetup, onProfile, onReload, insightsStyle, in
   const has = {
     customer: !!(data.customers && data.customers.available),
     cashflow: !!(data.cash_flow && data.cash_flow.available),
+    liquidity: !!((data.collections && data.collections.available) || (data.cash_flow && data.cash_flow.available)),
     collections: !!(data.collections && data.collections.available),
     product: !!(data.product && data.product.available),
     profit: !!(data.profitability && data.profitability.available),
@@ -59,6 +69,10 @@ function IntelligenceHub({ data, onSetup, onProfile, onReload, insightsStyle, in
     gst: !!(data.gst && data.gst.available),
     opportunity: !!(data.opportunities && data.opportunities.available),
     market: !!(data.market && data.market.available),
+    workingcapital: true,
+    forecasting: true,
+    risk: true,
+    executive: true,
   };
 
   // Count alerts per module from the action center so each card can show a live
@@ -66,6 +80,7 @@ function IntelligenceHub({ data, onSetup, onProfile, onReload, insightsStyle, in
   const CAT_TO_MODULE = {
     collections: "collections", customer_risk: "customer", liquidity_risk: "cashflow",
     cash_flow_risk: "cashflow", working_capital: "financial", debt_risk: "financial",
+    liquidity_risk: "liquidity",
     profitability: "profit", inventory_risk: "product", compliance: "compliance",
     gst: "gst", reconciliation: "cashflow", opportunity: "opportunity",
     market_risk: "market", market_opportunity: "market",
@@ -80,25 +95,35 @@ function IntelligenceHub({ data, onSetup, onProfile, onReload, insightsStyle, in
   const render = () => {
     switch (cat) {
       case "customer":
-        return has.customer ? <CustomerIntelligenceCard customers={data.customers} /> : <EmptyModule label="Customer" />;
+        return has.customer ? <CustomerIntelligenceCard customers={data.customers} healthImpact={data.health?.health_impact?.customer} /> : <EmptyModule label="Customer" />;
       case "cashflow":
         return has.cashflow ? <CashFlowCard cashFlow={data.cash_flow} /> : <EmptyModule label="Cash flow" />;
+      case "liquidity":
+        return <BankingLiquidityCard />;
       case "financial":
         return has.financial ? <BalanceSheetCard balanceSheet={data.balance_sheet} /> : <EmptyModule label="Financial position" />;
       case "collections":
-        return <CollectionsWidget data={data.collections} />;
+        return <CollectionsWidget data={data.collections} healthImpact={data.health?.health_impact?.collections} />;
       case "product":
-        return <ProductWidget data={data.product} />;
+        return <ProductWidget data={data.product} healthImpact={data.health?.health_impact?.product} />;
       case "profit":
-        return has.profit ? <ProfitabilityCard profitability={data.profitability} /> : <EmptyModule label="Profitability" />;
+        return has.profit ? <ProfitabilityCard profitability={data.profitability} healthImpact={data.health?.health_impact?.profit} /> : <EmptyModule label="Profitability" />;
       case "compliance":
-        return <ComplianceWidget data={data.compliance} onSetup={onSetup} />;
+        return <ComplianceWidget data={data.compliance} onSetup={onSetup} healthImpact={data.health?.health_impact?.compliance} />;
       case "gst":
-        return has.gst ? <GstCard gst={data.gst} /> : <EmptyModule label="GST" />;
+        return has.gst ? <GstCard gst={data.gst} healthImpact={data.health?.health_impact?.gst} /> : <EmptyModule label="GST" />;
       case "opportunity":
         return has.opportunity ? <OpportunityCard opportunities={data.opportunities} /> : <EmptyModule label="Opportunity" />;
       case "market":
         return <MarketRadarWidget data={data.market} onSetup={onProfile} onChanged={onReload} />;
+      case "workingcapital":
+        return <ModuleIntelligenceCard fetcher={CommandCenterService.getWorkingCapital} icon={Scale} fallbackName="Working Capital Intelligence" />;
+      case "forecasting":
+        return <ModuleIntelligenceCard fetcher={CommandCenterService.getForecasting} icon={LineChart} fallbackName="Forecasting Intelligence" />;
+      case "risk":
+        return <ModuleIntelligenceCard fetcher={CommandCenterService.getRiskIntelligence} icon={ShieldAlert} fallbackName="Risk Intelligence" />;
+      case "executive":
+        return <ModuleIntelligenceCard fetcher={CommandCenterService.getExecutiveIntelligence} icon={Crown} fallbackName="Executive Intelligence" />;
       default:
         return null;
     }

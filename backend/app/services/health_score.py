@@ -186,11 +186,37 @@ class HealthScoreService:
         eligible_count = sum(1 for v in eligibility.values() if v) + (1 if liquidity_solvency_eligible else 0)
         data_completeness = Decimal('100') * Decimal(eligible_count) / Decimal(total_possible_components)
 
+        # Per-module contribution to the overall health score (the actual
+        # weighted points each component adds to the reweighted total). Lets the
+        # dashboard show "Impact on Business Health: +N points" per module.
+        health_impact = {}
+        if eligible_max_sum > 0:
+            scale = Decimal('100') / eligible_max_sum
+            module_map = {
+                'profit': 'profitability_score',
+                'collections': 'revenue_growth_score',
+                'product': 'inventory_health_score',
+                'customer': 'customer_risk_score',
+                'financial': 'liquidity_solvency_score',
+            }
+            for module, comp in module_map.items():
+                if comp == 'liquidity_solvency_score':
+                    if liquidity_solvency_eligible and liquidity_solvency_score is not None:
+                        health_impact[module] = float(round(liquidity_solvency_score * scale, 1))
+                elif eligibility.get(comp):
+                    health_impact[module] = float(round(component_scores[comp] * scale, 1))
+            # Derived modules share their parent component's contribution.
+            if 'collections' in health_impact:
+                health_impact['liquidity'] = health_impact['collections']
+            if 'profit' in health_impact:
+                health_impact['workingcapital'] = round(health_impact['profit'] / 2, 1)
+
         payload = {
             'components': {k: float(round(v, 2)) for k, v in component_scores.items()},
             'liquidity_solvency_score': float(round(liquidity_solvency_score, 2)) if liquidity_solvency_score is not None else None,
             'data_completeness': float(round(data_completeness, 2)),
             'components_unavailable': components_unavailable,
+            'health_impact': health_impact,
             'kpis': {
                 **kpis,
                 'period_start': str(kpis['period_start']),
@@ -215,6 +241,7 @@ class HealthScoreService:
             'liquidity_solvency_score': float(round(liquidity_solvency_score, 2)) if liquidity_solvency_score is not None else None,
             'data_completeness': float(round(data_completeness, 2)),
             'components_unavailable': components_unavailable,
+            'health_impact': health_impact,
             'period_start': kpis['period_start'],
             'period_end': kpis['period_end'],
             'payload': payload,

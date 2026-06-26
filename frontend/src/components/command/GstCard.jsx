@@ -1,4 +1,9 @@
+import { useState, useEffect } from "react";
 import { formatCurrency } from "../../utils/formatters";
+import { ExplainTooltip } from "../common/ExplainTooltip";
+import TrustFooter from "./TrustFooter";
+import HealthImpactBadge from "./HealthImpactBadge";
+import CommandCenterService from "../../services/commandCenterService";
 
 // GST Intelligence widget — renders only when GST R1 data has been uploaded
 // (data.gst.available). Shows output GST liability, a GST health score, risk
@@ -13,7 +18,7 @@ function ScoreBadge({ score }) {
   return <span className={`figure rounded-pill px-2.5 py-1 text-sm font-bold ${cls}`}>{v}/100</span>;
 }
 
-function GstCard({ gst }) {
+function GstCard({ gst, healthImpact }) {
   if (!gst || !gst.available) return null;
   const liability = gst.liability || {};
   const alerts = gst.alerts || [];
@@ -37,20 +42,28 @@ function GstCard({ gst }) {
       {/* Liability breakdown */}
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="rounded-xl border border-border bg-bg-subtle px-4 py-3">
-          <p className="truncate text-xs font-medium text-ink-muted">Output GST</p>
+          <p className="flex items-center gap-1 truncate text-xs font-medium text-ink-muted">Output GST
+            <ExplainTooltip title="Output GST" hint="GST collected on sales (GSTR-1)." detail={{ formula: "Σ tax on outward supplies", sources: ["GST R1"], confidence: 85 }} />
+          </p>
           <p className="figure mt-0.5 text-lg font-bold text-ink">{formatCurrency(liability.output_tax || 0)}</p>
         </div>
         <div className="rounded-xl border border-border bg-bg-subtle px-4 py-3">
-          <p className="truncate text-xs font-medium text-ink-muted">CGST</p>
-          <p className="figure mt-0.5 text-lg font-bold text-ink">{formatCurrency(liability.cgst || 0)}</p>
+          <p className="flex items-center gap-1 truncate text-xs font-medium text-ink-muted">Input tax credit
+            <ExplainTooltip title="Input Tax Credit" hint="GST paid on purchases, available to offset." detail={{ formula: "Σ GST on purchases (from GST-categorised expenses)", sources: ["Expenses"], confidence: 55 }} />
+          </p>
+          <p className="figure mt-0.5 text-lg font-bold text-ink">{liability.input_tax_credit != null ? formatCurrency(liability.input_tax_credit) : "—"}</p>
         </div>
         <div className="rounded-xl border border-border bg-bg-subtle px-4 py-3">
-          <p className="truncate text-xs font-medium text-ink-muted">SGST</p>
-          <p className="figure mt-0.5 text-lg font-bold text-ink">{formatCurrency(liability.sgst || 0)}</p>
+          <p className="flex items-center gap-1 truncate text-xs font-medium text-ink-muted">Net liability
+            <ExplainTooltip title="Net GST Liability" hint="What you actually owe after ITC." detail={{ formula: "output GST − input tax credit", sources: ["GST R1", "Expenses"], confidence: 60 }} />
+          </p>
+          <p className="figure mt-0.5 text-lg font-bold text-ink">{formatCurrency(liability.net_liability != null ? liability.net_liability : (liability.output_tax || 0))}</p>
         </div>
         <div className="rounded-xl border border-border bg-bg-subtle px-4 py-3">
-          <p className="truncate text-xs font-medium text-ink-muted">IGST</p>
-          <p className="figure mt-0.5 text-lg font-bold text-ink">{formatCurrency(liability.igst || 0)}</p>
+          <p className="flex items-center gap-1 truncate text-xs font-medium text-ink-muted">ITC utilization
+            <ExplainTooltip title="ITC Utilization %" hint="Share of output tax offset by credit." detail={{ formula: "input tax credit / output GST × 100", sources: ["GST R1", "Expenses"], confidence: 55 }} />
+          </p>
+          <p className="figure mt-0.5 text-lg font-bold text-ink">{liability.itc_utilization_pct != null ? `${liability.itc_utilization_pct}%` : "—"}</p>
         </div>
       </div>
       {liability.note && <p className="mt-2 text-[11px] text-ink-muted">{liability.note}</p>}
@@ -112,7 +125,73 @@ function GstCard({ gst }) {
           })}
         </div>
       )}
+      <GstReconciliationPanel />
+
+      <HealthImpactBadge points={healthImpact} />
+      <TrustFooter
+        sources={["GST R1", "Expenses"]}
+        confidence={Math.round(gst.gst_health_score || 0) >= 70 ? 80 : 60}
+        lastUpdated={gst.last_updated || gst.period || "Latest import"}
+        explanation="GST liability and ITC are computed from your uploaded GST R1 returns and GST-categorised expenses."
+        assumptions={liability.input_tax_credit == null ? "ITC derived from expenses; upload a purchase/GSTR-2B file for exact ITC." : undefined}
+        warning={gst.alerts && gst.alerts.length ? `${gst.alerts.length} GST alert(s) detected` : undefined}
+      />
     </section>
+  );
+}
+
+// GSTR-1 vs GSTR-2B/3B reconciliation. Self-fetches; shows the per-period
+// output-vs-ITC table when purchase data exists, otherwise a prompt to upload
+// purchases (never fabricates ITC).
+function GstReconciliationPanel() {
+  const [rec, setRec] = useState(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let alive = true;
+    CommandCenterService.getGstReconciliation()
+      .then((d) => { if (alive) setRec(d); })
+      .catch(() => { if (alive) setRec(null); })
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, []);
+
+  if (loading) return null;
+  if (!rec) return null;
+
+  if (!rec.available) {
+    return (
+      <div className="mt-4 rounded-xl border border-dashed border-border bg-bg-subtle px-4 py-3">
+        <p className="text-sm font-semibold text-ink">GSTR-1 vs GSTR-2B reconciliation</p>
+        <p className="mt-1 text-xs text-ink-muted">{rec.reason}</p>
+      </div>
+    );
+  }
+
+  const s = rec.summary;
+  return (
+    <div className="mt-4 rounded-xl border border-border bg-bg-subtle p-4">
+      <p className="flex items-center gap-1 text-sm font-semibold text-ink">GSTR-1 vs GSTR-2B reconciliation
+        <ExplainTooltip title="GST Reconciliation" hint="Outward tax (GSTR-1) vs input credit (GSTR-2B)." detail={{ formula: "output tax − input tax credit, per period", sources: ["Sales", "Purchases"], confidence: 78 }} />
+      </p>
+      <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div><p className="text-[11px] text-ink-muted">Output GST</p><p className="figure text-sm font-bold text-ink">{formatCurrency(s.output_tax)}</p></div>
+        <div><p className="text-[11px] text-ink-muted">ITC</p><p className="figure text-sm font-bold text-risk-low">{formatCurrency(s.input_tax_credit)}</p></div>
+        <div><p className="text-[11px] text-ink-muted">Net payable</p><p className="figure text-sm font-bold text-ink">{formatCurrency(s.net_liability)}</p></div>
+        <div><p className="text-[11px] text-ink-muted">Mismatches</p><p className={`figure text-sm font-bold ${s.mismatch_count > 0 ? "text-risk-high" : "text-risk-low"}`}>{s.mismatch_count}</p></div>
+      </div>
+      {rec.rows?.length > 0 && (
+        <div className="mt-3 space-y-1">
+          {rec.rows.slice(0, 6).map((r) => (
+            <div key={r.period} className="flex items-center justify-between gap-2 text-xs">
+              <span className="text-ink-muted">{r.period}</span>
+              <span className="figure text-ink">{formatCurrency(r.output_tax)} out</span>
+              <span className="figure text-risk-low">{formatCurrency(r.input_tax_credit)} ITC</span>
+              <span className={`font-semibold ${r.status === "matched" ? "text-risk-low" : r.status === "payable" ? "text-ink" : "text-gold"}`}>{r.status}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

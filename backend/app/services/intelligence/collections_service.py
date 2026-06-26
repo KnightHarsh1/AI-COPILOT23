@@ -135,6 +135,13 @@ class CollectionsIntelligenceService:
             'basis': 'Aging buckets weighted by recovery likelihood and your collection efficiency.',
         }
 
+        # Days Sales Outstanding: how long, on average, money stays unpaid.
+        # DSO = (outstanding / credit sales over period) × period days.
+        dso = None
+        if credit_sales > 0:
+            dso = round((outstanding / credit_sales) * 90, 1)
+        recovery_probability = round(min(100.0, eff_factor * 100), 1)
+
         return {
             'available': True,
             'cash_sales': round(cash_sales, 2),
@@ -143,7 +150,10 @@ class CollectionsIntelligenceService:
             'total_collected': round(collected, 2),
             'outstanding_receivables': round(outstanding, 2),
             'collection_efficiency': collection_efficiency,
+            'dso': dso,
+            'recovery_probability': recovery_probability,
             'aging': {k: round(v, 2) for k, v in buckets.items()},
+            'aging_labels': {'current': '0-30', 'd1_30': '0-30', 'd31_60': '31-60', 'd61_90': '61-90', 'd90_plus': '90+'},
             'overdue_total': round(overdue_total, 2),
             'top_customer_name': top_customer_name,
             'top_customer_share': top_customer_share,

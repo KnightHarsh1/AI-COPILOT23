@@ -78,16 +78,31 @@ class GSTIntelligenceService:
             monthly[key] += _d(r.total_tax) or (_d(r.cgst) + _d(r.sgst) + _d(r.igst))
         trend = [{'month': k, 'tax': float(v)} for k, v in sorted(monthly.items())]
 
-        # Output GST liability = tax collected on sales (R1 is outward supplies).
-        # Without purchase/input data we report gross output liability and say
-        # so honestly (net payable would subtract input tax credit).
+        # Input Tax Credit: purchase-side GST. We don't yet ingest a purchase
+        # register / GSTR-2B, so ITC is read from expense tax columns if present;
+        # otherwise reported as unavailable (net = output until ITC is provided).
+        from app.db.models.expense import Expense
+        itc_rows = (
+            self.session.query(func.coalesce(func.sum(Expense.amount), 0))
+            .filter(Expense.company_id == company_id, Expense.category.ilike('%gst%'))
+            .scalar()
+        )
+        input_tax = float(itc_rows or 0)
+        itc_available = input_tax > 0
+        net_liability = float(total_tax) - input_tax if itc_available else float(total_tax)
+        itc_utilization = round(min(100.0, input_tax / float(total_tax) * 100), 1) if total_tax > 0 and itc_available else None
+
         liability = {
             'output_tax': float(total_tax),
+            'input_tax_credit': input_tax if itc_available else None,
+            'net_liability': round(net_liability, 2),
+            'itc_utilization_pct': itc_utilization,
             'cgst': float(cgst),
             'sgst': float(sgst),
             'igst': float(igst),
             'taxable_value': float(taxable),
-            'note': 'Output GST on sales (GST R1). Net payable would subtract input tax credit from purchases.',
+            'note': ('Net = output − ITC.' if itc_available
+                     else 'Output GST on sales (GST R1). Import a purchase/GSTR-2B file to compute ITC and net payable.'),
         }
 
         health = self._health(rows, taxable, total_tax, eff_rate)

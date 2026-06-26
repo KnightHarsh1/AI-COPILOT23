@@ -131,6 +131,20 @@ class ColumnMappingService:
         self.mapping_memory = MappingMemoryService(session)
         self.gemini = gemini_service
 
+    def _custom_synonyms(self, company_id) -> dict:
+        """Normalized synonym -> canonical field, from the Data Dictionary."""
+        try:
+            from app.db.models.data_dictionary import DataDictionaryEntry
+            rows = (
+                self.session.query(DataDictionaryEntry)
+                .filter(DataDictionaryEntry.company_id == company_id,
+                        DataDictionaryEntry.kind == 'synonym')
+                .all()
+            )
+            return {r.key: r.maps_to for r in rows if r.maps_to}
+        except Exception:
+            return {}
+
     def suggest_mapping(self, table: RawTable, document_type: str, company_id) -> List[ColumnSuggestion]:
         memory_hit = self.mapping_memory.find_cached_mapping(
             company_id, compute_signature_hash(table.headers)
@@ -176,6 +190,27 @@ class ColumnMappingService:
 
         # Restore original column order (the loop above processed by score).
         suggestions_by_column = {s.source_column: s for s in suggestions}
+
+        # Custom synonyms taught from the Mapping Review step: if a still-
+        # unresolved column header matches a user-defined synonym, map it.
+        custom = self._custom_synonyms(company_id)
+        if custom and unresolved_indices:
+            still = []
+            for idx in unresolved_indices:
+                header = table.headers[idx]
+                target = custom.get(_normalize(header))
+                if target and target not in used_fields:
+                    suggestions_by_column[header] = ColumnSuggestion(
+                        source_column=header,
+                        sample_values=_sample_values(table, idx),
+                        suggested_field=target,
+                        confidence=99.0,
+                        source='memory',
+                    )
+                    used_fields.add(target)
+                else:
+                    still.append(idx)
+            unresolved_indices = still
 
         if unresolved_indices and self.gemini is not None and self.gemini.available:
             ai_suggestions = self._ai_fallback(table, unresolved_indices, document_type, used_fields)

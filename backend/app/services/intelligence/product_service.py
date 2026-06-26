@@ -137,16 +137,58 @@ class ProductIntelligenceService:
         if total_sales and linked_sales < total_sales:
             coverage_note = f'Sales-based metrics use {linked_sales} of {total_sales} sales that are linked to a product.'
 
+        # COGS proxy (last 90d) for turnover/DIO.
+        from datetime import timedelta
+        since = today - timedelta(days=90)
+        cogs_90 = 0.0
+        for inv_id, revenue, _oc in linked:
+            it = item_by_id.get(inv_id)
+            if it and it.unit_cost is not None:
+                cogs_90 += _f(it.unit_cost) * (it.total_units_sold or 0)
+        # Inventory turnover ratio (annualised) = (COGS×4) / inventory value.
+        turnover_ratio = round((cogs_90 * 4) / inventory_value, 2) if inventory_value > 0 and cogs_90 > 0 else None
+        dio = round(365 / turnover_ratio, 1) if turnover_ratio and turnover_ratio > 0 else None
+        slow_value = 0.0
+        for it in items:
+            di = (today - it.last_sold_date).days if it.last_sold_date else None
+            if di is not None and SLOW_MOVING_DAYS <= di < DEAD_STOCK_DAYS and (it.quantity or 0) > 0:
+                slow_value += _f(it.unit_cost) * (it.quantity or 0)
+        # Overstock: quantity far above reorder level (≥3×) ties up cash.
+        overstock_value = 0.0
+        for it in items:
+            if it.reorder_level and it.quantity and it.quantity >= it.reorder_level * 3:
+                overstock_value += _f(it.unit_cost) * (it.quantity or 0)
+        # ABC analysis by inventory value contribution.
+        valued = sorted(
+            [{'product_name': it.product_name, 'sku': it.sku, 'value': _f(it.unit_cost) * (it.quantity or 0)} for it in items],
+            key=lambda x: x['value'], reverse=True,
+        )
+        total_val = sum(v['value'] for v in valued) or 1
+        abc = {'A': [], 'B': [], 'C': []}
+        cum = 0.0
+        for v in valued:
+            cum += v['value']
+            pct = cum / total_val
+            grade = 'A' if pct <= 0.8 else 'B' if pct <= 0.95 else 'C'
+            abc[grade].append(v)
+        abc_summary = {g: {'count': len(items_), 'value': round(sum(i['value'] for i in items_), 2)} for g, items_ in abc.items()}
+
         return {
             'available': True,
             'total_products': len(items),
             'inventory_value': round(inventory_value, 2),
+            'inventory_turnover_ratio': turnover_ratio,
+            'dio': dio,
             'best_sellers': best_sellers[:5],
             'most_profitable': most_profitable[:5],
             'dead_stock': dead_stock[:10],
             'dead_stock_value': round(dead_value, 2),
             'slow_moving': slow_moving[:10],
+            'slow_moving_value': round(slow_value, 2),
+            'overstock_value': round(overstock_value, 2),
             'stockout_risk': stockout_risk[:10],
+            'stockout_risk_value': round(sum(_f(i.get('quantity', 0)) for i in stockout_risk), 2),
+            'abc_analysis': abc_summary,
             'top_product_share': top_product_share,
             'product_health_score': score,
             'coverage_note': coverage_note,

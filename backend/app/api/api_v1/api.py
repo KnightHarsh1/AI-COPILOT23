@@ -23,6 +23,8 @@ from app.api.api_v1.endpoints import (
     risk_assessment,
     forecast,
     pdf_report,
+    banking_liquidity,
+    intelligence_modules,
 )
 from app.core.config import settings
 
@@ -160,6 +162,18 @@ api_router.include_router(
     billing.router,
     prefix="/billing",
     tags=["billing"]
+)
+
+api_router.include_router(
+    banking_liquidity.router,
+    prefix="/banking-liquidity",
+    tags=["banking-liquidity"]
+)
+
+api_router.include_router(
+    intelligence_modules.router,
+    prefix="/intelligence",
+    tags=["intelligence"]
 )
 
 # Additive, parallel to /upload/ -- not a replacement. Gated behind a

@@ -2,6 +2,9 @@ import { useState } from "react";
 import Drawer from "./Drawer";
 import ScoreGauge from "../common/charts/ScoreGauge";
 import { formatCurrency, formatCurrencyCompact } from "../../utils/formatters";
+import { ExplainTooltip } from "../common/ExplainTooltip";
+import TrustFooter from "./TrustFooter";
+import HealthImpactBadge from "./HealthImpactBadge";
 
 const AGING_LABELS = {
   current: "Not due yet",
@@ -11,7 +14,7 @@ const AGING_LABELS = {
   d90_plus: "90+ days",
 };
 
-function CollectionsWidget({ data }) {
+function CollectionsWidget({ data, healthImpact }) {
   const [open, setOpen] = useState(false);
 
   if (!data?.available) {
@@ -60,6 +63,10 @@ function CollectionsWidget({ data }) {
             <Stat label="Credit sales" value={formatCurrency(data.credit_sales)} />
             <Stat label="Total billed" value={formatCurrency(data.total_billed)} />
             <Stat label="Collected" value={formatCurrency(data.total_collected)} />
+            <Stat label="DSO" value={data.dso != null ? `${data.dso} days` : "—"}
+              explain={{ title: "Days Sales Outstanding", hint: "Average days to collect credit sales.", detail: { formula: "(outstanding / credit sales) × 90", sources: ["Sales"], confidence: 70 } }} />
+            <Stat label="Recovery probability" value={data.recovery_probability != null ? `${data.recovery_probability}%` : "—"}
+              explain={{ title: "Recovery Probability", hint: "Likelihood of collecting what's outstanding.", detail: { formula: "based on collection efficiency + aging", sources: ["Sales"], confidence: 65 } }} />
           </div>
 
           <div>
@@ -104,16 +111,28 @@ function CollectionsWidget({ data }) {
               payment-status columns to make these numbers complete.
             </p>
           )}
+
+          <HealthImpactBadge points={healthImpact} />
+          <TrustFooter
+            sources={["Sales Register"]}
+            confidence={Math.round(data.credit_health_score || 0) >= 70 ? 80 : 62}
+            lastUpdated={data.last_updated || "Latest import"}
+            explanation="Collections metrics (DSO, aging, recovery) are computed from invoice payment status and dates."
+            assumptions={data.sales_missing_payment_data > 0 ? "Some invoices lack payment data; coverage is partial." : undefined}
+            warning={(data.aging && data.aging.d90_plus > 0) ? `${formatCurrency(data.aging.d90_plus)} overdue 90+ days` : undefined}
+          />
         </div>
       </Drawer>
     </>
   );
 }
 
-function Stat({ label, value }) {
+function Stat({ label, value, explain }) {
   return (
     <div className="min-w-0 rounded-lg bg-bg-subtle px-3 py-2">
-      <p className="truncate text-xs text-ink-muted">{label}</p>
+      <p className="flex items-center gap-1 truncate text-xs text-ink-muted">{label}
+        {explain && <ExplainTooltip title={explain.title || label} hint={explain.hint} detail={explain.detail} />}
+      </p>
       <p className="figure mt-0.5 break-words font-semibold text-ink">{value}</p>
     </div>
   );

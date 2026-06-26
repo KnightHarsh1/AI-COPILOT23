@@ -91,11 +91,24 @@ class ComplianceIntelligenceService:
 
         next_items = (due_soon + upcoming)[:5]
 
+        # Penalty & interest exposure (indicative, Indian norms): each overdue
+        # filing carries a late fee (~₹50/day capped) + 18% p.a. interest proxy.
+        penalty_exposure = 0.0
+        interest_exposure = 0.0
+        for d in overdue:
+            overdue_days = max(0, (today - d.due_date).days)
+            penalty_exposure += min(5000, overdue_days * 50)
+            interest_exposure += overdue_days * (0.18 / 365) * 10000  # on a ₹10k notional liability
+        filing_completion = round(((total_relevant - len(overdue)) / total_relevant) * 100, 1) if total_relevant else 100.0
+
         return {
             'available': True,
             'compliance_score': score,
+            'filing_completion_pct': filing_completion,
             'overdue_count': len(overdue),
             'due_soon_count': len(due_soon),
+            'penalty_exposure': round(penalty_exposure, 2),
+            'interest_exposure': round(interest_exposure, 2),
             'upcoming': [_serialize(d) for d in next_items],
             'overdue': [_serialize(d) for d in overdue],
             'gstin': company.gstin,

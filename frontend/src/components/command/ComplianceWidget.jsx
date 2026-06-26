@@ -1,6 +1,10 @@
 import { useState } from "react";
 import Drawer from "./Drawer";
 import ScoreGauge from "../common/charts/ScoreGauge";
+import { formatCurrency } from "../../utils/formatters";
+import { ExplainTooltip } from "../common/ExplainTooltip";
+import TrustFooter from "./TrustFooter";
+import HealthImpactBadge from "./HealthImpactBadge";
 
 const STATUS_STYLES = {
   overdue: "bg-risk-high/10 text-risk-high",
@@ -9,7 +13,7 @@ const STATUS_STYLES = {
   filed: "bg-risk-low/10 text-risk-low",
 };
 
-function ComplianceWidget({ data, onSetup }) {
+function ComplianceWidget({ data, onSetup, healthImpact }) {
   const [open, setOpen] = useState(false);
 
   if (!data?.available) {
@@ -65,6 +69,28 @@ function ComplianceWidget({ data, onSetup }) {
         subtitle="GST, TDS, and tax deadlines — never miss a filing."
       >
         <div className="space-y-6">
+          {/* New compliance KPIs with explain-this-number */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="rounded-xl border border-border bg-bg-subtle px-4 py-3">
+              <p className="flex items-center gap-1 text-xs text-ink-muted">Filing completion
+                <ExplainTooltip title="Filing Completion %" hint="Share of tracked filings not overdue." detail={{ formula: "(total − overdue) / total × 100", sources: ["Compliance calendar"], confidence: 75 }} />
+              </p>
+              <p className="figure mt-0.5 text-lg font-bold text-ink">{data.filing_completion_pct != null ? `${data.filing_completion_pct}%` : "—"}</p>
+            </div>
+            <div className="rounded-xl border border-border bg-bg-subtle px-4 py-3">
+              <p className="flex items-center gap-1 text-xs text-ink-muted">Penalty exposure
+                <ExplainTooltip title="Penalty Exposure" hint="Indicative late fees on overdue filings." detail={{ formula: "Σ min(₹5000, overdue_days × ₹50)", sources: ["Compliance calendar"], confidence: 55 }} />
+              </p>
+              <p className="figure mt-0.5 text-lg font-bold text-ink">{formatCurrency(data.penalty_exposure || 0)}</p>
+            </div>
+            <div className="rounded-xl border border-border bg-bg-subtle px-4 py-3">
+              <p className="flex items-center gap-1 text-xs text-ink-muted">Interest exposure
+                <ExplainTooltip title="Interest Exposure" hint="Indicative 18% p.a. interest on overdue liability." detail={{ formula: "Σ overdue_days × (18%/365) × notional", sources: ["Compliance calendar"], confidence: 50 }} />
+              </p>
+              <p className="figure mt-0.5 text-lg font-bold text-ink">{formatCurrency(data.interest_exposure || 0)}</p>
+            </div>
+          </div>
+
           {data.overdue?.length > 0 && (
             <DeadlineBlock title="Overdue" items={data.overdue} />
           )}
@@ -72,6 +98,16 @@ function ComplianceWidget({ data, onSetup }) {
           <p className="rounded-xl border border-border bg-bg-subtle px-4 py-2 text-xs text-ink-muted">
             Dates are standard statutory due dates and may shift with government notifications. Not tax advice.
           </p>
+
+          <HealthImpactBadge points={healthImpact} />
+          <TrustFooter
+            sources={["Compliance calendar", "GSTIN"]}
+            confidence={Math.round(data.compliance_score || 0) >= 70 ? 75 : 58}
+            lastUpdated={data.last_updated || "Today"}
+            explanation="Compliance status, penalty and interest exposure are derived from statutory due dates and your filing status."
+            assumptions="Penalty/interest figures are indicative estimates on standard norms, not exact liabilities."
+            warning={data.overdue_count > 0 ? `${data.overdue_count} filing(s) overdue` : undefined}
+          />
         </div>
       </Drawer>
     </>

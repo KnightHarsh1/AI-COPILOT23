@@ -1,7 +1,8 @@
 import { useState } from 'react';
+import { AlertTriangle } from 'lucide-react';
 import Button from '../common/Button';
 import UploadDropzone from '../common/UploadDropzone';
-import MappingReviewTable from './MappingReviewTable';
+import MappingReviewTable, { confidenceOf, LOW_CONFIDENCE } from './MappingReviewTable';
 import { ProfilingPanel, AIUnderstandingPanel, ReadinessPanel } from './ImportInsightsPanels';
 import ImportImpactReport from './ImportImpactReport';
 import { ingestionService } from '../../services/ingestionService';
@@ -33,6 +34,8 @@ function IngestionWizard({ onComplete }) {
   const [commitResult, setCommitResult] = useState(null);
   const [error, setError] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [showForceModal, setShowForceModal] = useState(false);
+  const [forceReason, setForceReason] = useState('');
 
   const needsStatementDate = ['balance_sheet', 'profit_and_loss'].includes(
     analyzeResult?.document_type
@@ -87,6 +90,48 @@ function IngestionWizard({ onComplete }) {
     (!needsStatementDate || statementDate) &&
     analyzeResult?.document_type !== 'unknown';
 
+  // Collect all blocking/non-blocking issues so Force Import can list them.
+  const detectIssues = () => {
+    const issues = [];
+    if (analyzeResult?.duplicate_file_warning) issues.push(analyzeResult.duplicate_file_warning);
+    missingRequired.forEach((f) => issues.push(`Missing required field: ${f}`));
+    mapping.forEach((s) => {
+      const c = confidenceOf(s);
+      if (s.suggested_field && c < LOW_CONFIDENCE) issues.push(`${s.source_column} → low confidence mapping (${c}%)`);
+      if (!s.suggested_field) issues.push(`${s.source_column} is unmapped`);
+    });
+    const dq = analyzeResult?.data_quality;
+    if (dq?.issues?.length) dq.issues.forEach((i) => issues.push(typeof i === 'string' ? i : (i.message || 'Data quality issue')));
+    if (needsStatementDate && !statementDate) issues.push('Statement date not set');
+    return issues;
+  };
+  const issues = detectIssues();
+  const hasIssues = issues.length > 0;
+
+  const runImport = async ({ force }) => {
+    setShowForceModal(false);
+    setStep('confirming');
+    try {
+      const result = await ingestionService.confirm(analyzeResult.batch_id, {
+        mapping: currentMappingDict(),
+        save_mapping: true,
+        statement_date: statementDate || undefined,
+        bank_name: bankName || undefined,
+        bank_account_last4: bankLast4 || undefined,
+        force: !!force,
+        force_reason: force ? (forceReason || 'Proceeded despite warnings') : undefined,
+      });
+      if (force) result.force_imported = true;
+      if (force && (!result.warnings || result.warnings.length === 0)) result.warnings = issues;
+      setCommitResult(result);
+      setStep('summary');
+      onComplete?.();
+    } catch (err) {
+      setError(err?.response?.data?.detail || 'Import failed. Please try again.');
+      setStep('error');
+    }
+  };
+
   const handleConfirm = async () => {
     setStep('confirming');
     try {
@@ -116,6 +161,8 @@ function IngestionWizard({ onComplete }) {
     setBankName('');
     setBankLast4('');
     setUploadProgress(0);
+    setShowForceModal(false);
+    setForceReason('');
   };
 
   if (step === 'drop') {
@@ -165,6 +212,7 @@ function IngestionWizard({ onComplete }) {
 
   if (step === 'summary') {
     const r = commitResult || {};
+    const forced = !!r.force_imported;
     const summaryItems = [
       { label: 'Sales added', value: r.sales_added },
       { label: 'Expenses added', value: r.expenses_added },
@@ -176,17 +224,23 @@ function IngestionWizard({ onComplete }) {
       { label: 'Rows skipped (invalid)', value: r.rows_skipped_invalid },
     ].filter((item) => item.value > 0);
 
+    const tone = forced ? 'border-gold/40 bg-gold/5' : 'border-risk-low/30 bg-risk-low/5';
     return (
-      <div className="space-y-6 rounded-card border border-risk-low/30 bg-risk-low/5 p-6">
+      <div className={`space-y-6 rounded-card border p-6 ${tone}`}>
         <div className="flex items-start gap-4">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-risk-low/20 text-risk-low">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
-              <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${forced ? 'bg-gold/20 text-gold' : 'bg-risk-low/20 text-risk-low'}`}>
+            {forced ? <AlertTriangle size={20} /> : (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
+                <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
           </div>
           <div>
-            <p className="font-semibold text-ink">Import complete</p>
+            <p className="font-semibold text-ink">{forced ? 'Import completed with warnings' : 'Import complete'}</p>
             <p className="mt-1 text-sm text-ink-muted">{r.message || 'Your data was imported successfully.'}</p>
+            <span className={`mt-2 inline-block rounded-pill px-2.5 py-0.5 text-xs font-bold ${forced ? 'bg-gold/15 text-gold' : 'bg-risk-low/15 text-risk-low'}`}>
+              {forced ? '⚠ Force Imported' : '✓ Imported'}
+            </span>
           </div>
         </div>
         {summaryItems.length > 0 && (
@@ -194,10 +248,18 @@ function IngestionWizard({ onComplete }) {
             {summaryItems.map(({ label, value }) => (
               <div key={label} className="flex items-center justify-between rounded-xl bg-surface px-4 py-3 shadow-card">
                 <dt className="text-sm text-ink-muted">{label}</dt>
-                <dd className="figure font-semibold text-ink">{formatNumber(value)}</dd>
+                <dd className="figure-value font-semibold text-ink">{formatNumber(value)}</dd>
               </div>
             ))}
           </dl>
+        )}
+        {forced && r.warnings?.length > 0 && (
+          <div className="rounded-xl border border-gold/30 bg-surface p-4">
+            <p className="text-xs font-bold uppercase tracking-wide text-gold">Warnings ({r.warnings.length})</p>
+            <ul className="mt-2 space-y-1 text-sm text-ink-muted">
+              {r.warnings.map((w, i) => <li key={i}>• {w}</li>)}
+            </ul>
+          </div>
         )}
         {commitResult?.is_duplicate && (
           <p className="text-sm text-ink-muted">
@@ -286,6 +348,8 @@ function IngestionWizard({ onComplete }) {
           suggestedMapping={mapping}
           documentType={analyzeResult?.document_type}
           onMappingChange={handleMappingChange}
+          onFieldCreated={() => {}}
+          onSynonymAdded={() => {}}
         />
       </div>
 
@@ -349,14 +413,83 @@ function IngestionWizard({ onComplete }) {
         <Button variant="ghost" onClick={handleReset} disabled={step === 'confirming'}>
           ← Use a different file
         </Button>
-        <Button
-          onClick={handleConfirm}
-          disabled={!canConfirm || step === 'confirming'}
-          loading={step === 'confirming'}
-        >
-          Confirm &amp; import
-        </Button>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setShowForceModal(true)}
+            disabled={step === 'confirming' || analyzeResult?.document_type === 'unknown'}
+            title={hasIssues ? `${issues.length} issue(s) detected` : 'No issues detected — Normal Import recommended'}
+            className={`inline-flex items-center gap-2 rounded-pill border-2 px-4 py-2 text-sm font-bold transition disabled:opacity-50 ${
+              hasIssues
+                ? 'border-risk-high text-risk-high hover:bg-risk-high/10'
+                : 'border-border text-ink-muted hover:bg-bg-subtle hover:text-ink'
+            }`}
+          >
+            <AlertTriangle size={16} /> Force import
+          </button>
+          <Button
+            onClick={handleConfirm}
+            disabled={!canConfirm || step === 'confirming'}
+            loading={step === 'confirming'}
+          >
+            Confirm &amp; import
+          </Button>
+        </div>
       </div>
+
+      {/* Force Import warning modal */}
+      {showForceModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" role="dialog" aria-modal="true">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowForceModal(false)} />
+          <div className={`relative w-full max-w-lg rounded-card border bg-surface p-6 shadow-2xl ${hasIssues ? 'border-risk-high/40' : 'border-border'}`}>
+            <div className={`flex items-center gap-2 ${hasIssues ? 'text-risk-high' : 'text-ink'}`}>
+              <AlertTriangle size={22} />
+              <h3 className="font-display text-lg font-bold">{hasIssues ? 'Force Import Warning' : 'No issues detected'}</h3>
+            </div>
+            <p className="mt-3 text-sm text-ink-muted">
+              {hasIssues
+                ? 'This file contains issues that prevent normal import.'
+                : 'No validation issues were detected. We recommend using Normal Import (Confirm & Import). You can still force the import if you prefer.'}
+            </p>
+
+            {hasIssues && (
+              <div className="mt-4 rounded-xl border border-border bg-bg-subtle p-4">
+                <p className="text-xs font-bold uppercase tracking-wide text-ink-muted">Problems found ({issues.length})</p>
+                <ul className="mt-2 max-h-44 space-y-1 overflow-y-auto text-sm text-ink">
+                  {issues.map((issue, i) => <li key={i}>• {issue}</li>)}
+                </ul>
+              </div>
+            )}
+
+            <div className="mt-4">
+              <label className="text-xs font-semibold uppercase tracking-wide text-ink-muted">Reason (stored in audit log)</label>
+              <input
+                value={forceReason}
+                onChange={(e) => setForceReason(e.target.value)}
+                placeholder={hasIssues ? 'Why are you importing despite these issues?' : 'Optional note'}
+                className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowForceModal(false)}
+                className="rounded-pill px-4 py-2 text-sm font-semibold text-ink-muted hover:bg-bg-subtle"
+              >
+                {hasIssues ? 'Revalidate errors' : 'Use Normal Import'}
+              </button>
+              <button
+                type="button"
+                onClick={() => runImport({ force: true })}
+                className={`rounded-pill px-4 py-2 text-sm font-bold text-white hover:opacity-90 ${hasIssues ? 'bg-risk-high' : 'bg-primary'}`}
+              >
+                Proceed anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

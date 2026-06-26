@@ -273,7 +273,15 @@ function HistoryTab() {
               <tr className="border-t border-border">
                 <td className="px-4 py-3 text-ink">{b.document_type}</td>
                 <td className="px-4 py-3 text-ink-muted">{b.sheet_name || "—"}</td>
-                <td className="px-4 py-3"><span className={`rounded-pill px-2 py-0.5 text-xs font-semibold ${statusStyle(b.status)}`}>{b.status}</span></td>
+                <td className="px-4 py-3">
+                  {b.status === "committed" && b.force_imported ? (
+                    <span className="rounded-pill bg-gold/15 px-2 py-0.5 text-xs font-semibold text-gold">⚠ Force Imported</span>
+                  ) : b.status === "committed" ? (
+                    <span className="rounded-pill bg-risk-low/10 px-2 py-0.5 text-xs font-semibold text-risk-low">✓ Imported</span>
+                  ) : (
+                    <span className={`rounded-pill px-2 py-0.5 text-xs font-semibold ${statusStyle(b.status)}`}>{b.status}</span>
+                  )}
+                </td>
                 <td className="px-4 py-3 text-ink-muted">{b.created_at ? formatDate(b.created_at) : "—"}</td>
                 <td className="px-4 py-3 text-right">
                   <div className="flex items-center justify-end gap-2">

@@ -54,6 +54,7 @@ class ActionCenterService:
         actions.extend(self._from_products(company_id))
         actions.extend(self._from_balance_sheet(company_id))
         actions.extend(self._from_cash_flow(company_id))
+        actions.extend(self._from_liquidity(company_id))
         actions.extend(self._from_expenses(company_id))
         actions.extend(self._from_customers(company_id))
         actions.extend(self._from_opportunities(company_id))
@@ -344,6 +345,28 @@ class ActionCenterService:
             return CustomerIntelligenceService(self.session).actions(company_id)
         except Exception:
             return []
+
+    def _from_liquidity(self, company_id):
+        """Cash risk from Banking & Liquidity Intelligence: negative-cash
+        prediction, overdue concentration, and short runway."""
+        from app.services.intelligence.banking_liquidity_service import BankingLiquidityService
+        try:
+            d = BankingLiquidityService(self.session).analyze(company_id)
+        except Exception:
+            return []
+        if not d.get('available'):
+            return []
+        out = []
+        neg = d.get('negative_cash') or {}
+        if neg.get('will_go_negative'):
+            out.append(_action('liquidity_risk', 'critical', 'Projected cash shortfall',
+                               f"Cash may turn negative around {neg.get('date')}.",
+                               f"Shortfall ≈ ₹{BankingLiquidityService._inr(neg.get('amount'))}",
+                               'Accelerate collections or delay non-critical spend before this date.', 'today'))
+        if d.get('top_risk'):
+            out.append(_action('liquidity_risk', 'high', 'Cash risk', d['top_risk'],
+                               'Liquidity pressure', 'Review the liquidity forecast and prioritise collections.', 'week'))
+        return out
 
     def _from_opportunities(self, company_id):
         """Opportunity actions (expand growing customers, liquidate dead stock,
