@@ -78,7 +78,7 @@ function IntelligenceHub({ data, onSetup, onProfile, onReload, insightsStyle, in
   // Count alerts per module from the action center so each card can show a live
   // alert badge. Maps action categories → intelligence module ids.
   const CAT_TO_MODULE = {
-    collections: "collections", customer_risk: "customer", liquidity_risk: "cashflow",
+    collections: "collections", customer_risk: "customer",
     cash_flow_risk: "cashflow", working_capital: "financial", debt_risk: "financial",
     liquidity_risk: "liquidity",
     profitability: "profit", inventory_risk: "product", compliance: "compliance",

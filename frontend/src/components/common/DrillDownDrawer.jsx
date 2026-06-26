@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Database, Calculator, Calendar, Clock, FileText, Activity } from "lucide-react";
 import ConfidenceIndicator from "./ConfidenceIndicator";
@@ -40,12 +41,15 @@ function DrillDownDrawer({ open, onClose, title, detail }) {
     return () => { document.body.style.overflow = prev; };
   }, [open]);
 
-  return (
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
     <AnimatePresence>
       {open && (
         <>
           <motion.div
             className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+            style={{ isolation: "isolate", willChange: "opacity" }}
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             onClick={onClose}
           />
@@ -101,7 +105,8 @@ function DrillDownDrawer({ open, onClose, title, detail }) {
           </motion.aside>
         </>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }
 

@@ -41,7 +41,7 @@ function StatCard({
   );
 
   return (
-    <div className="group glow-hover shine relative flex flex-col justify-between overflow-hidden rounded-card border border-border bg-surface p-6 shadow-card hover:border-primary/40">
+    <div className="group glow-hover shine relative isolate flex flex-col justify-between overflow-hidden rounded-card border border-border bg-surface p-6 shadow-card hover:border-primary/40" style={{ contain: "paint" }}>
       {/* Neon glow wash on hover */}
       <div className="pointer-events-none absolute inset-0 rounded-card opacity-0 transition-opacity duration-300 group-hover:opacity-100" style={{ background: "radial-gradient(120% 80% at 50% 0%, rgba(var(--c-primary),0.12), transparent 70%)" }} />
 
