@@ -1,84 +1,138 @@
-import { Link } from 'react-router-dom';
+import { Link } from "react-router-dom";
+import { motion, useReducedMotion } from "framer-motion";
+import { ArrowRight, Play, Sparkles, ShieldCheck, Zap, Lock } from "lucide-react";
+import LandingNav from "../components/landing/LandingNav";
+import AuroraBackground from "../components/landing/AuroraBackground";
+import HeroDashboardMock from "../components/landing/HeroDashboardMock";
+import { Reveal } from "../components/landing/Reveal";
+import {
+  TrustedBy, ProblemSection, HowItWorks, FeaturesGrid, AiCfoSection,
+  ComparisonSection, PricingSection, Testimonials, FaqSection, FinalCta, LandingFooter,
+} from "../components/landing/LandingSections";
 
-const VALUE_PROPS = [
-  {
-    title: 'Customer & inventory risk',
-    body: 'Know the moment one customer or a stockout starts putting revenue at risk.',
-  },
-  {
-    title: 'Revenue & growth opportunities',
-    body: 'Get told where momentum is building, not just where the bar chart went up.',
-  },
-  {
-    title: 'A daily AI brief, not a dashboard',
-    body: 'One page that explains what changed, why, and what to do about it next.',
-  },
+// LandingPage — the public marketing experience. Composed entirely from
+// reusable landing components that share the app's design tokens, so the page
+// feels like one cohesive premium product. Auth CTAs route to the existing
+// /register and /login flows (unchanged).
+
+const HERO_STATS = [
+  { value: "18", label: "Intelligence modules" },
+  { value: "<15s", label: "To first insight" },
+  { value: "100%", label: "KPIs explained" },
 ];
+
+function Hero() {
+  const reduce = useReducedMotion();
+  return (
+    <section className="relative overflow-hidden pt-32 pb-20 sm:pt-40 sm:pb-28">
+      <AuroraBackground dense />
+      <div className="relative mx-auto grid max-w-7xl items-center gap-16 px-6 lg:grid-cols-2">
+        {/* Copy */}
+        <div className="text-center lg:text-left">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+            className="inline-flex items-center gap-2 rounded-pill border border-border bg-surface/70 px-4 py-1.5 text-xs font-semibold text-ink-muted backdrop-blur"
+          >
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-primary"><Sparkles size={11} /></span>
+            AI-powered Virtual CFO for SMEs
+          </motion.div>
+
+          <motion.h1
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.05, ease: [0.22, 1, 0.36, 1] }}
+            className="font-display mt-6 text-4xl font-bold leading-[1.08] tracking-tight text-ink sm:text-5xl lg:text-6xl"
+          >
+            Your business,{" "}
+            <span className="relative whitespace-nowrap">
+              <span className="bg-gradient-to-r from-primary to-primary-hover bg-clip-text text-transparent">finally explained</span>
+            </span>
+          </motion.h1>
+
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.12, ease: [0.22, 1, 0.36, 1] }}
+            className="mx-auto mt-6 max-w-xl text-lg leading-7 text-ink-muted lg:mx-0"
+          >
+            Upload your Excel, Tally, GST or bank data. Business Copilot turns it into a health score, forecasts, risks and clear next steps — like a CFO who never sleeps.
+          </motion.p>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.18, ease: [0.22, 1, 0.36, 1] }}
+            className="mt-8 flex flex-col items-center gap-3 sm:flex-row lg:items-start lg:justify-start"
+          >
+            <Link
+              to="/register"
+              className="group inline-flex w-full items-center justify-center gap-2 rounded-pill bg-primary px-7 py-3.5 text-sm font-bold text-white shadow-[0_8px_24px_-6px_rgb(var(--c-primary)/0.6)] transition hover:bg-primary-hover sm:w-auto"
+            >
+              Start free <ArrowRight size={16} className="transition group-hover:translate-x-0.5" />
+            </Link>
+            <a
+              href="#how"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-pill border border-border bg-surface/60 px-7 py-3.5 text-sm font-semibold text-ink backdrop-blur transition hover:bg-bg-subtle sm:w-auto"
+            >
+              <Play size={14} className="text-primary" /> Watch demo
+            </a>
+          </motion.div>
+
+          {/* Trust line */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+            className="mt-7 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-ink-muted lg:justify-start"
+          >
+            <span className="flex items-center gap-1.5"><ShieldCheck size={14} className="text-risk-low" /> Bank-level security</span>
+            <span className="flex items-center gap-1.5"><Zap size={14} className="text-primary" /> Insights in seconds</span>
+            <span className="flex items-center gap-1.5"><Lock size={14} className="text-ink-muted" /> No card required</span>
+          </motion.div>
+
+          {/* Hero stats */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.36 }}
+            className="mt-10 grid max-w-md grid-cols-3 gap-4 lg:mx-0"
+          >
+            {HERO_STATS.map((s) => (
+              <div key={s.label} className="text-center lg:text-left">
+                <p className="font-display text-2xl font-bold text-ink sm:text-3xl">{s.value}</p>
+                <p className="mt-1 text-xs leading-tight text-ink-muted">{s.label}</p>
+              </div>
+            ))}
+          </motion.div>
+        </div>
+
+        {/* Product mock */}
+        <div className="relative">
+          <HeroDashboardMock />
+        </div>
+      </div>
+    </section>
+  );
+}
 
 function LandingPage() {
   return (
-    <main className="min-h-screen bg-bg text-ink">
-      <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
-        <span className="font-display flex items-center gap-2 text-lg font-bold text-ink">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-sm text-white">B</span>
-          Business Copilot
-        </span>
-        <nav className="flex items-center gap-3">
-          <Link to="/login" className="rounded-pill px-4 py-2 text-sm font-medium text-ink-muted hover:text-ink">
-            Sign in
-          </Link>
-          <Link to="/register" className="rounded-pill bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-hover">
-            Get started free
-          </Link>
-        </nav>
-      </header>
-
-      <section className="mx-auto grid max-w-6xl gap-12 px-6 py-16 lg:grid-cols-2 lg:items-center lg:py-24">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">AI Business Copilot for Indian SMBs</p>
-          <h1 className="font-display mt-4 text-4xl font-bold leading-tight text-ink sm:text-5xl">
-            Stop reading dashboards.<br />Start getting told what to do.
-          </h1>
-          <p className="mt-6 text-lg leading-7 text-ink-muted">
-            Upload your sales and expenses. Business Copilot reads them like a CFO would — then tells you, in
-            plain language, what&rsquo;s working, what&rsquo;s at risk, and what to do next.
-          </p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Link to="/register" className="rounded-pill bg-primary px-6 py-3 text-sm font-semibold text-white shadow-card hover:bg-primary-hover">
-              Get started free
-            </Link>
-            <Link to="/login" className="rounded-pill border border-border px-6 py-3 text-sm font-semibold text-ink hover:bg-bg-subtle">
-              Sign in
-            </Link>
-          </div>
-        </div>
-
-        <div className="rounded-card border border-border bg-surface p-6 shadow-card">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">AI Business Brief — preview</p>
-          <h2 className="font-display mt-3 text-xl font-bold text-ink">Revenue grew 18% this month — here&rsquo;s how to keep it going.</h2>
-          <div className="mt-5 rounded-xl border border-border border-l-4 border-l-risk-low bg-bg-subtle p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wide text-ink-muted">Growth Opportunity</span>
-              <span className="rounded-pill bg-risk-low/10 px-2.5 py-0.5 text-xs font-semibold text-risk-low">High priority</span>
-            </div>
-            <p className="mt-2 font-display text-base font-semibold text-ink">Repeat orders are driving growth</p>
-            <p className="mt-1 text-sm text-ink-muted"><span className="font-medium text-ink">Reason: </span>Your top 5 customers placed 40% more orders than last month.</p>
-            <p className="mt-1 text-sm text-ink-muted"><span className="font-medium text-ink">Action: </span>Launch a referral offer to turn this momentum into new customers.</p>
-            <p className="mt-2 text-sm font-medium text-gold">↗ Could add ₹40,000–60,000 in new monthly revenue</p>
-          </div>
-        </div>
-      </section>
-
-      <section className="border-t border-border bg-bg-subtle">
-        <div className="mx-auto grid max-w-6xl gap-8 px-6 py-16 sm:grid-cols-3">
-          {VALUE_PROPS.map((item) => (
-            <div key={item.title}>
-              <h3 className="font-display text-lg font-semibold text-ink">{item.title}</h3>
-              <p className="mt-2 text-sm leading-6 text-ink-muted">{item.body}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+    <main className="min-h-screen overflow-x-hidden bg-bg text-ink antialiased">
+      <LandingNav />
+      <Hero />
+      <TrustedBy />
+      <ProblemSection />
+      <HowItWorks />
+      <FeaturesGrid />
+      <AiCfoSection />
+      <ComparisonSection />
+      <PricingSection />
+      <Testimonials />
+      <FaqSection />
+      <FinalCta />
+      <LandingFooter />
     </main>
   );
 }

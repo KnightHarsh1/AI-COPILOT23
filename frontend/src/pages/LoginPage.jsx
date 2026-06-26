@@ -1,15 +1,20 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { validateEmail, validatePassword } from '../utils/validators';
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { ArrowRight } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
+import { validateEmail, validatePassword } from "../utils/validators";
+import { AuthLayout, AuthInput, AuthButton, FormError, AuthCheckbox } from "../components/auth/AuthLayout";
 
+// LoginPage — premium re-skin over the EXISTING auth logic. The login() call,
+// validators, error handling and navigation are unchanged; only the UI is new.
 function LoginPage() {
   const navigate = useNavigate();
   const { login } = useAuth();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [remember, setRemember] = useState(true);
   const [errors, setErrors] = useState({});
-  const [formError, setFormError] = useState('');
+  const [formError, setFormError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (event) => {
@@ -22,69 +27,59 @@ function LoginPage() {
     }
 
     setErrors({});
-    setFormError('');
+    setFormError("");
     setIsSubmitting(true);
 
     try {
       await login({ email, password });
-      navigate('/app/dashboard');
+      navigate("/app/dashboard");
     } catch (error) {
-      setFormError(error.response?.data?.detail || 'Invalid login credentials.');
+      setFormError(error.response?.data?.detail || "Invalid login credentials.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <main className="min-h-screen bg-bg flex items-center justify-center px-4 py-12">
-      <section className="w-full max-w-md rounded-card border border-border bg-surface p-10 shadow-card">
-        <h1 className="font-display text-2xl font-semibold text-ink">Sign in</h1>
-        <p className="mt-2 text-sm text-ink-muted">Use your company credentials to access Business Copilot.</p>
+    <AuthLayout
+      title="Welcome back"
+      subtitle="Sign in to your Business Copilot workspace."
+      tagline="Welcome back to the AI CFO that runs the numbers for you."
+      footer={
+        <p className="text-center text-sm text-ink-muted">
+          New to Business Copilot?{" "}
+          <Link to="/register" className="font-semibold text-primary hover:text-primary-hover">Create an account</Link>
+        </p>
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+        <AuthInput
+          label="Email" name="email" type="email" value={email}
+          onChange={(e) => setEmail(e.target.value)} error={errors.email}
+          autoComplete="email" placeholder="you@company.com"
+        />
+        <AuthInput
+          label="Password" name="password" type="password" value={password}
+          onChange={(e) => setPassword(e.target.value)} error={errors.password}
+          autoComplete="current-password" placeholder="••••••••"
+        />
 
-        <form onSubmit={handleSubmit} className="mt-8 space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-ink">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              className="mt-2 w-full rounded-xl border border-border bg-bg-subtle px-3 py-2 text-sm text-ink outline-none transition focus:border-primary focus:bg-surface"
-            />
-            {errors.email && <p className="mt-2 text-sm text-risk-high">{errors.email}</p>}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-ink">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              className="mt-2 w-full rounded-xl border border-border bg-bg-subtle px-3 py-2 text-sm text-ink outline-none transition focus:border-primary focus:bg-surface"
-            />
-            {errors.password && <p className="mt-2 text-sm text-risk-high">{errors.password}</p>}
-          </div>
-
-          {formError && <p className="text-sm text-risk-high">{formError}</p>}
-
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full rounded-pill bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isSubmitting ? 'Signing in...' : 'Sign in'}
-          </button>
-        </form>
-
-        <div className="mt-6 flex items-center justify-between text-sm text-ink-muted">
-          <Link to="/forgot-password" className="text-primary hover:text-primary-hover">
+        <div className="flex items-center justify-between">
+          <AuthCheckbox name="remember" checked={remember} onChange={(e) => setRemember(e.target.checked)}>
+            Remember me
+          </AuthCheckbox>
+          <Link to="/forgot-password" className="text-sm font-medium text-primary hover:text-primary-hover">
             Forgot password?
           </Link>
-          <Link to="/register" className="text-primary hover:text-primary-hover">
-            Create account
-          </Link>
         </div>
-      </section>
-    </main>
+
+        <FormError>{formError}</FormError>
+
+        <AuthButton type="submit" loading={isSubmitting}>
+          {isSubmitting ? "Signing in…" : <>Sign in <ArrowRight size={15} className="transition group-hover:translate-x-0.5" /></>}
+        </AuthButton>
+      </form>
+    </AuthLayout>
   );
 }
 

@@ -1,17 +1,23 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { validateEmail, validatePassword, validateName } from '../utils/validators';
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { ArrowRight } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
+import { validateEmail, validatePassword, validateName } from "../utils/validators";
+import { AuthLayout, AuthInput, AuthButton, FormError, PasswordStrength, AuthCheckbox } from "../components/auth/AuthLayout";
 
+// RegisterPage — premium re-skin over the EXISTING registration logic. The
+// register() payload (first_name/last_name/email/password/company_name),
+// validators, navigation and error handling are unchanged; only the UI is new.
 function RegisterPage() {
   const navigate = useNavigate();
   const { register } = useAuth();
-  const [name, setName] = useState('');
-  const [companyName, setCompanyName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [name, setName] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [accepted, setAccepted] = useState(false);
   const [errors, setErrors] = useState({});
-  const [formError, setFormError] = useState('');
+  const [formError, setFormError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (event) => {
@@ -26,12 +32,12 @@ function RegisterPage() {
     }
 
     setErrors({});
-    setFormError('');
+    setFormError("");
     setIsSubmitting(true);
 
     try {
-      const [first_name, ...rest] = name.trim().split(' ');
-      const last_name = rest.length ? rest.join(' ') : undefined;
+      const [first_name, ...rest] = name.trim().split(" ");
+      const last_name = rest.length ? rest.join(" ") : undefined;
       await register({
         first_name,
         last_name,
@@ -39,84 +45,63 @@ function RegisterPage() {
         password,
         company_name: companyName.trim() || undefined,
       });
-      navigate('/app/dashboard');
+      navigate("/app/dashboard");
     } catch (error) {
-      setFormError(error.response?.data?.detail || 'Unable to create account.');
+      setFormError(error.response?.data?.detail || "Unable to create account.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <main className="min-h-screen bg-bg flex items-center justify-center px-4 py-12">
-      <section className="w-full max-w-md rounded-card border border-border bg-surface p-10 shadow-card">
-        <h1 className="font-display text-2xl font-semibold text-ink">Create an account</h1>
-        <p className="mt-2 text-sm text-ink-muted">Register your company and start tracking business KPIs.</p>
-
-        <form onSubmit={handleSubmit} className="mt-8 space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-ink">Full name</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              className="mt-2 w-full rounded-xl border border-border bg-bg-subtle px-3 py-2 text-sm text-ink outline-none transition focus:border-primary focus:bg-surface"
-            />
-            {errors.name && <p className="mt-2 text-sm text-risk-high">{errors.name}</p>}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-ink">Company name</label>
-            <input
-              type="text"
-              value={companyName}
-              onChange={(event) => setCompanyName(event.target.value)}
-              placeholder="Optional — you can set this later in Settings"
-              className="mt-2 w-full rounded-xl border border-border bg-bg-subtle px-3 py-2 text-sm text-ink outline-none transition focus:border-primary focus:bg-surface"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-ink">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              className="mt-2 w-full rounded-xl border border-border bg-bg-subtle px-3 py-2 text-sm text-ink outline-none transition focus:border-primary focus:bg-surface"
-            />
-            {errors.email && <p className="mt-2 text-sm text-risk-high">{errors.email}</p>}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-ink">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              className="mt-2 w-full rounded-xl border border-border bg-bg-subtle px-3 py-2 text-sm text-ink outline-none transition focus:border-primary focus:bg-surface"
-            />
-            {errors.password && <p className="mt-2 text-sm text-risk-high">{errors.password}</p>}
-          </div>
-
-          {formError && <p className="text-sm text-risk-high">{formError}</p>}
-
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full rounded-pill bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isSubmitting ? 'Creating account...' : 'Create account'}
-          </button>
-        </form>
-
-        <p className="mt-6 text-center text-sm text-ink-muted">
-          Already have an account?{' '}
-          <Link to="/login" className="text-primary hover:text-primary-hover">
-            Sign in
-          </Link>
+    <AuthLayout
+      title="Create your account"
+      subtitle="Start your AI-powered Virtual CFO in minutes — free."
+      tagline="Give your business the CFO it deserves. Start free in minutes."
+      footer={
+        <p className="text-center text-sm text-ink-muted">
+          Already have an account?{" "}
+          <Link to="/login" className="font-semibold text-primary hover:text-primary-hover">Sign in</Link>
         </p>
-      </section>
-    </main>
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+        <AuthInput
+          label="Full name" name="name" value={name}
+          onChange={(e) => setName(e.target.value)} error={errors.name}
+          autoComplete="name" placeholder="Priya Sharma"
+        />
+        <AuthInput
+          label="Business name" name="company" value={companyName}
+          onChange={(e) => setCompanyName(e.target.value)}
+          autoComplete="organization" placeholder="Sharma Healthcare"
+          hint="Optional — you can set this later in Settings"
+        />
+        <AuthInput
+          label="Email" name="email" type="email" value={email}
+          onChange={(e) => setEmail(e.target.value)} error={errors.email}
+          autoComplete="email" placeholder="you@company.com"
+        />
+        <div>
+          <AuthInput
+            label="Password" name="password" type="password" value={password}
+            onChange={(e) => setPassword(e.target.value)} error={errors.password}
+            autoComplete="new-password" placeholder="Create a strong password"
+          />
+          <PasswordStrength value={password} />
+        </div>
+
+        <AuthCheckbox name="terms" checked={accepted} onChange={(e) => setAccepted(e.target.checked)}>
+          I agree to the <span className="font-medium text-primary">Terms</span> and <span className="font-medium text-primary">Privacy Policy</span>
+        </AuthCheckbox>
+
+        <FormError>{formError}</FormError>
+
+        <AuthButton type="submit" loading={isSubmitting} disabled={isSubmitting || !accepted}>
+          {isSubmitting ? "Creating account…" : <>Create account <ArrowRight size={15} className="transition group-hover:translate-x-0.5" /></>}
+        </AuthButton>
+      </form>
+    </AuthLayout>
   );
 }
 
